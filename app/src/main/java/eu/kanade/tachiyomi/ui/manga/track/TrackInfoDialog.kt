@@ -528,6 +528,52 @@ class TrackScoreSelectorViewModel(
     )
 }
 
+/**
+ * The date picker works in UTC while stored dates are instants in the user's time zone, so they're compared by
+ * calendar day.
+ */
+internal fun isSelectableTrackDate(
+    utcTimeMillis: Long,
+    start: Boolean,
+    startDate: Instant?,
+    finishDate: Instant?,
+    now: Instant,
+    timeZone: TimeZone,
+): Boolean {
+    val targetDate = Instant.fromEpochMilliseconds(utcTimeMillis).toLocalDateTime(TimeZone.UTC).date
+
+    // Disallow future dates
+    if (targetDate > now.toLocalDateTime(timeZone).date) return false
+
+    return when {
+        // Disallow setting start date after finish date
+        start && finishDate != null -> targetDate <= finishDate.toLocalDateTime(timeZone).date
+        // Disallow setting finish date before start date
+        !start && startDate != null -> startDate.toLocalDateTime(timeZone).date <= targetDate
+        else -> true
+    }
+}
+
+internal fun isSelectableTrackYear(
+    year: Int,
+    start: Boolean,
+    startDate: Instant?,
+    finishDate: Instant?,
+    now: Instant,
+    timeZone: TimeZone,
+): Boolean {
+    // Disallow future years
+    if (year > now.toLocalDateTime(timeZone).year) return false
+
+    return when {
+        // Disallow setting start year after finish year
+        start && finishDate != null -> year <= finishDate.toLocalDateTime(timeZone).year
+        // Disallow setting finish year before start year
+        !start && startDate != null -> startDate.toLocalDateTime(timeZone).year <= year
+        else -> true
+    }
+}
+
 @Serializable
 data class TrackDateSelectorRoute(
     val track: Track,
@@ -549,47 +595,25 @@ fun TrackDateSelectorScreen(
     val selectableDates = remember(track, serviceId, start) {
         object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                val targetDate = Instant.fromEpochMilliseconds(utcTimeMillis).toLocalDateTime(TimeZone.UTC)
-
-                // Disallow future dates
-                if (targetDate > Clock.System.now().toLocalDateTime(TimeZone.UTC)) return false
-
-                val finishDate = track.finishDate?.toLocalDateTime(TimeZone.UTC)
-                val startDate = track.startDate?.toLocalDateTime(TimeZone.UTC)
-                return when {
-                    // Disallow setting start date after finish date
-                    start && finishDate != null -> {
-                        targetDate <= finishDate
-                    }
-                    // Disallow setting finish date before start date
-                    !start && startDate != null -> {
-                        startDate <= targetDate
-                    }
-                    else -> {
-                        true
-                    }
-                }
+                return isSelectableTrackDate(
+                    utcTimeMillis = utcTimeMillis,
+                    start = start,
+                    startDate = track.startDate,
+                    finishDate = track.finishDate,
+                    now = Clock.System.now(),
+                    timeZone = TimeZone.currentSystemDefault(),
+                )
             }
 
             override fun isSelectableYear(year: Int): Boolean {
-                // Disallow future years
-                if (year > Clock.System.now().toLocalDateTime(TimeZone.UTC).year) return false
-
-                val finishDate = track.finishDate?.toLocalDateTime(TimeZone.UTC)
-                val startDate = track.startDate?.toLocalDateTime(TimeZone.UTC)
-                return when {
-                    // Disallow setting start year after finish year
-                    start && finishDate != null -> {
-                        year <= finishDate.year
-                    }
-                    // Disallow setting finish year before start year
-                    !start && startDate != null -> {
-                        startDate.year <= year
-                    }
-                    else -> {
-                        true
-                    }
-                }
+                return isSelectableTrackYear(
+                    year = year,
+                    start = start,
+                    startDate = track.startDate,
+                    finishDate = track.finishDate,
+                    now = Clock.System.now(),
+                    timeZone = TimeZone.currentSystemDefault(),
+                )
             }
         }
     }
