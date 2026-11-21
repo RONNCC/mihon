@@ -28,7 +28,7 @@ class PendingChapterDeletionTest {
         coEvery { sourceManager.getOrStub(manga.source) } returns stub
         coEvery { getCategories.await(manga.id) } returns emptyList()
         coEvery { provider.findChapterDirs(chapters, manga, stub) } returns (null to emptyList())
-        every { pendingDeleter.getPendingChapters() } returns mapOf(manga to chapters)
+        every { pendingDeleter.getPendingChapters(any()) } returns mapOf(manga to chapters)
         val manager = DownloadManager(
             mockk(), provider, mockk(relaxed = true), getCategories, mockk(), mockk(), sourceManager,
             DownloadPreferences(InMemoryPreferenceStore()), mockk(relaxed = true), pendingDeleter,
@@ -37,5 +37,22 @@ class PendingChapterDeletionTest {
         manager.deletePendingChapters()
 
         coVerify { provider.findChapterDirs(chapters, manga, stub) }
+    }
+
+    @Test
+    fun `keeps the chapters a reader holds pending`() = runTest {
+        val pendingDeleter = mockk<DownloadPendingDeleter>()
+        every { pendingDeleter.getPendingChapters(any()) } returns emptyMap()
+        val manager = DownloadManager(
+            mockk(), mockk(), mockk(relaxed = true), mockk(), mockk(), mockk(), mockk(),
+            DownloadPreferences(InMemoryPreferenceStore()), mockk(relaxed = true), pendingDeleter,
+        )
+
+        manager.holdChapter(3)
+        manager.holdChapter(4)
+        manager.releaseChapter(4)
+        manager.deletePendingChapters()
+
+        coVerify { pendingDeleter.getPendingChapters(setOf(3L)) }
     }
 }

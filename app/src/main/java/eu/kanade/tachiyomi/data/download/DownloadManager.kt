@@ -32,6 +32,7 @@ import tachiyomi.domain.manga.interactor.GetManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.MR
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * This class is used to manage chapter downloads in the application. It must be instantiated once
@@ -52,6 +53,8 @@ class DownloadManager(
     private val downloader: Downloader,
     private val pendingDeleter: DownloadPendingDeleter,
 ) {
+
+    private val heldChapterIds = ConcurrentHashMap.newKeySet<Long>()
 
     val queueState
         get() = downloader.queueState
@@ -321,10 +324,22 @@ class DownloadManager(
     }
 
     /**
+     * Keeps the chapter with [chapterId] pending instead of deleting it while a reader shows it, since a restored
+     * reader would read a chapter that just vanished.
+     */
+    fun holdChapter(chapterId: Long) {
+        heldChapterIds.add(chapterId)
+    }
+
+    fun releaseChapter(chapterId: Long) {
+        heldChapterIds.remove(chapterId)
+    }
+
+    /**
      * Triggers the execution of the deletion of pending chapters.
      */
     suspend fun deletePendingChapters() {
-        val pendingChapters = pendingDeleter.getPendingChapters()
+        val pendingChapters = pendingDeleter.getPendingChapters(keeping = heldChapterIds.toSet())
         for ((manga, chapters) in pendingChapters) {
             deleteChapters(chapters, manga, sourceManager.getOrStub(manga.source))
         }

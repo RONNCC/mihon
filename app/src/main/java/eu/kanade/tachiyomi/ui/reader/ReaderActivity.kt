@@ -406,6 +406,8 @@ class ReaderActivity : BaseActivity() {
      */
     override fun onDestroy() {
         super.onDestroy()
+        // Dismissed from the recents, which doesn't call finish()
+        if (isFinishing) viewModel.onActivityFinish()
         viewer?.destroy()
         menuToggleToast?.cancel()
         readingModeToast?.cancel()

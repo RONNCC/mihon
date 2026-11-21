@@ -173,6 +173,8 @@ class ReaderViewModel(
     private var chapterId = savedState.get<Long>("chapter_id") ?: -1L
         set(value) {
             savedState["chapter_id"] = value
+            downloadManager.releaseChapter(field)
+            downloadManager.holdChapter(value)
             field = value
         }
 
@@ -298,7 +300,12 @@ class ReaderViewModel(
     private var incognitoMode: Boolean = false
     private val downloadAheadAmount = downloadPreferences.autoDownloadWhileReading.get()
 
+    private var finished = false
+
     init {
+        // Restored from process or activity death, the setter above isn't run
+        if (chapterId != -1L) downloadManager.holdChapter(chapterId)
+
         // To save state
         state.map { it.viewerChapters?.currChapter }
             .distinctUntilChanged()
@@ -328,7 +335,8 @@ class ReaderViewModel(
                 appScope.launch { downloadManager.addDownloadsToStartOfQueue(listOf(it)) }
             }
         }
-        // Also runs when the reader is dismissed without finish(), e.g. swiped away from the recents
+        if (finished) downloadManager.releaseChapter(chapterId)
+        // The current chapter stays pending while the activity may still be restored
         deletePendingChapters()
     }
 
@@ -337,6 +345,8 @@ class ReaderViewModel(
      * trigger deletion of the downloaded chapters.
      */
     fun onActivityFinish() {
+        finished = true
+        downloadManager.releaseChapter(chapterId)
         deletePendingChapters()
     }
 
