@@ -326,8 +326,7 @@ class DownloadManager(
     suspend fun deletePendingChapters() {
         val pendingChapters = pendingDeleter.getPendingChapters()
         for ((manga, chapters) in pendingChapters) {
-            val source = sourceManager.get(manga.source) ?: continue
-            deleteChapters(chapters, manga, source)
+            deleteChapters(chapters, manga, sourceManager.getOrStub(manga.source))
         }
     }
 
@@ -433,7 +432,7 @@ class DownloadManager(
 
         val categoriesForManga = getCategories.await(manga.id)
             .map { it.id }
-            .ifEmpty { listOf(0) }
+            .ifEmpty { listOf(0L) }
         val filteredCategoryManga = if (categoriesForManga.intersect(categoriesToExclude).isNotEmpty()) {
             chapters.filterNot { it.read }
         } else {

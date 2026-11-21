@@ -39,6 +39,7 @@ import eu.kanade.tachiyomi.data.coil.InstalledSourceIconKeyer
 import eu.kanade.tachiyomi.data.coil.MangaCoverFetcher
 import eu.kanade.tachiyomi.data.coil.MangaCoverKeyer
 import eu.kanade.tachiyomi.data.coil.MangaKeyer
+import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.data.notification.Notifications
 import eu.kanade.tachiyomi.extension.ExtensionManager
 import eu.kanade.tachiyomi.network.NetworkHelper
@@ -54,6 +55,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import logcat.AndroidLogcatLogger
 import logcat.LogPriority
 import logcat.LogcatLogger
@@ -103,6 +105,8 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
     @Inject private lateinit var extensionManager: Lazy<ExtensionManager>
 
+    @Inject private lateinit var downloadManager: Lazy<DownloadManager>
+
     @Inject private lateinit var widgetManager: WidgetManager
 
     @Inject private lateinit var migrations: Set<Migration>
@@ -111,6 +115,8 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
     private lateinit var scope: CoroutineScope
 
     private val disableIncognitoReceiver = DisableIncognitoReceiver()
+
+    private var pendingDeletesFlushed = false
 
     @SuppressLint("LaunchActivityFromNotification")
     override fun onCreate() {
@@ -262,6 +268,12 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
     override fun onStart(owner: LifecycleOwner) {
         SecureActivityDelegate.onApplicationStart(this)
+
+        // Deletions queued by a reader that never finished, e.g. when the process was killed
+        if (!pendingDeletesFlushed) {
+            pendingDeletesFlushed = true
+            scope.launch { downloadManager.value.deletePendingChapters() }
+        }
     }
 
     override fun onStop(owner: LifecycleOwner) {

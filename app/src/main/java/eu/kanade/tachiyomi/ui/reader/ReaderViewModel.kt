@@ -46,6 +46,7 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import eu.kanade.tachiyomi.util.chapter.filterDownloaded
+import eu.kanade.tachiyomi.util.chapter.getChapterToDeleteAfterRead
 import eu.kanade.tachiyomi.util.chapter.removeDuplicates
 import eu.kanade.tachiyomi.util.editCover
 import eu.kanade.tachiyomi.util.lang.byteSize
@@ -327,6 +328,8 @@ class ReaderViewModel(
                 appScope.launch { downloadManager.addDownloadsToStartOfQueue(listOf(it)) }
             }
         }
+        // Also runs when the reader is dismissed without finish(), e.g. swiped away from the recents
+        deletePendingChapters()
     }
 
     /**
@@ -607,30 +610,37 @@ class ReaderViewModel(
         val removeAfterReadSlots = downloadPreferences.removeAfterReadSlots.get()
         if (removeAfterReadSlots == -1) return
 
-        // Determine which chapter should be deleted and enqueue
-        val currentChapterPosition = chapterList.indexOf(currentChapter)
-        val chapterToDelete = chapterList.getOrNull(currentChapterPosition - removeAfterReadSlots)
-
         // If chapter is completely read, no need to download it
         chapterToDownload = null
 
-        if (chapterToDelete == null || !chapterToDelete.chapter.read) return
+        // Determine which chapter should be deleted and enqueue
+        val manga = manga ?: return
+        // Fetched fresh: chapters marked read outside the reader's list since it loaded are stale in the cached one
+        val chapterToDelete = getChaptersByMangaId.await(manga.id, applyScanlatorFilter = true)
+            .getChapterToDeleteAfterRead(
+                manga = manga,
+                currentChapter = currentChapter.chapter,
+                slots = removeAfterReadSlots,
+                skipDuplicates = readerPreferences.skipDupe.get(),
+            )
+
+        if (chapterToDelete == null || !chapterToDelete.read) return
 
         val markDuplicateAsRead = libraryPreferences.markDuplicateReadChapterAsRead.get()
             .contains(LibraryPreferences.MARK_DUPLICATE_CHAPTER_READ_EXISTING)
         val duplicateChapters = if (markDuplicateAsRead) {
             getUnfilteredChapterList()
                 .filter {
-                    it.id != chapterToDelete.chapter.id &&
+                    it.id != chapterToDelete.id &&
                         it.isRecognizedNumber &&
-                        it.chapterNumber == chapterToDelete.chapter.chapterNumber
+                        it.chapterNumber == chapterToDelete.chapterNumber
                 }
                 // The list is loaded once, before these were marked read along with chapterToDelete
                 .map { it.copy(read = true) }
         } else {
             emptyList()
         }
-        enqueueDeleteChapters(listOf(chapterToDelete.chapter) + duplicateChapters)
+        enqueueDeleteChapters(listOf(chapterToDelete) + duplicateChapters)
     }
 
     /**
