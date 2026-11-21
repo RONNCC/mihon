@@ -11,12 +11,16 @@ class ArchiveReader(pfd: ParcelFileDescriptor) : Closeable {
     private val size = pfd.statSize
     private val address = Os.mmap(0, size, OsConstants.PROT_READ, OsConstants.MAP_PRIVATE, pfd.fileDescriptor, 0)
 
-    fun <T> useEntries(block: (Sequence<ArchiveEntry>) -> T): T = ArchiveInputStream(address, size).use {
+    private val lock = Any()
+    private var isClosed = false
+    private var openStreams = 0
+
+    fun <T> useEntries(block: (Sequence<ArchiveEntry>) -> T): T = openStream().use {
         block(generateSequence { it.getNextEntry() })
     }
 
     fun getInputStream(entryName: String): InputStream? {
-        val archive = ArchiveInputStream(address, size)
+        val archive = openStream()
         try {
             while (true) {
                 val entry = archive.getNextEntry() ?: break
@@ -32,7 +36,32 @@ class ArchiveReader(pfd: ParcelFileDescriptor) : Closeable {
         return null
     }
 
+    /**
+     * The mapping outlives [close] until its streams are closed, and no stream opens after it: reading unmapped
+     * memory crashes the process.
+     */
+    private fun openStream(): ArchiveInputStream = synchronized(lock) {
+        check(!isClosed) { "Archive is closed" }
+        openStreams++
+        ArchiveInputStream(address, size, onClose = ::onStreamClosed)
+    }
+
+    private fun onStreamClosed() = synchronized(lock) {
+        openStreams--
+        unmapIfUnused()
+    }
+
     override fun close() {
-        Os.munmap(address, size)
+        synchronized(lock) {
+            if (isClosed) return
+            isClosed = true
+            unmapIfUnused()
+        }
+    }
+
+    private fun unmapIfUnused() {
+        if (isClosed && openStreams == 0) {
+            Os.munmap(address, size)
+        }
     }
 }
