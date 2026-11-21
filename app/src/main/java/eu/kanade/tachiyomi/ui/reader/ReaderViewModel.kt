@@ -328,6 +328,8 @@ class ReaderViewModel(
                 appScope.launch { downloadManager.addDownloadsToStartOfQueue(listOf(it)) }
             }
         }
+        // Also runs when the reader is dismissed without finish(), e.g. swiped away from the recents
+        deletePendingChapters()
     }
 
     /**
