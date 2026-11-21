@@ -6,6 +6,7 @@ import eu.kanade.tachiyomi.network.parseAs
 import kotlinx.serialization.json.Json
 import okhttp3.Interceptor
 import okhttp3.Response
+import java.io.IOException
 
 class HikkaInterceptor(
     private val hikka: Hikka,
@@ -38,9 +39,14 @@ class HikkaInterceptor(
 
         val refreshTokenResponse = chain.proceed(HikkaApi.refreshTokenRequest(currAuth.accessToken))
         if (!refreshTokenResponse.isSuccessful) {
+            val code = refreshTokenResponse.code
             refreshTokenResponse.close()
-            hikka.logout()
-            throw Exception("Hikka: The token is expired")
+            // Only an explicit rejection means the token is dead; rate limits and server errors are transient
+            if (code == 401) {
+                hikka.logout()
+                throw Exception("Hikka: The token is expired")
+            }
+            throw IOException("Hikka: Token check failed with HTTP $code")
         }
         refreshTokenResponse.close()
 
