@@ -126,14 +126,13 @@ class LibraryUpdateWorker(private val context: Context, workerParams: WorkerPara
 
         setForegroundSafely()
 
-        libraryPreferences.lastUpdatedTimestamp.set(Clock.System.now().toEpochMilliseconds())
-
         val categoryId = inputData.getLong(KEY_CATEGORY, -1L)
         addMangaToQueue(categoryId)
 
         return withContext(Dispatchers.IO) {
             try {
                 updateChapterList()
+                libraryPreferences.lastUpdatedTimestamp.set(Clock.System.now().toEpochMilliseconds())
                 Result.success()
             } catch (e: Exception) {
                 if (e is CancellationException) {
