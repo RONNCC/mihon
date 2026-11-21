@@ -32,6 +32,7 @@ import eu.kanade.tachiyomi.util.system.setForegroundSafely
 import eu.kanade.tachiyomi.util.system.workManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -258,82 +259,92 @@ class LibraryUpdateWorker(private val context: Context, workerParams: WorkerPara
         val timeZone = TimeZone.currentSystemDefault()
         val fetchWindow = fetchInterval.getWindow(Clock.System.now().toLocalDateTime(timeZone).date, timeZone)
 
-        coroutineScope {
-            mangaToUpdate.groupBy { it.manga.source }.values
-                .sortedByDescending { it.size }
-                .map { mangaInSource ->
-                    async {
-                        semaphore.withPermit {
-                            mangaInSource.forEach { libraryManga ->
-                                val manga = libraryManga.manga
-                                ensureActive()
+        try {
+            coroutineScope {
+                mangaToUpdate.groupBy { it.manga.source }.values
+                    .sortedByDescending { it.size }
+                    .map { mangaInSource ->
+                        async {
+                            semaphore.withPermit {
+                                mangaInSource.forEach { libraryManga ->
+                                    val manga = libraryManga.manga
+                                    ensureActive()
 
-                                // Don't continue to update if manga is not in library
-                                if (getManga.await(manga.id)?.favorite != true) {
-                                    return@forEach
-                                }
+                                    // Don't continue to update if manga is not in library
+                                    if (getManga.await(manga.id)?.favorite != true) {
+                                        return@forEach
+                                    }
 
-                                withUpdateNotification(
-                                    currentlyUpdatingManga,
-                                    progressCount,
-                                    manga,
-                                ) {
-                                    try {
-                                        val newChapters = updateManga(manga, fetchWindow)
-                                            .sortedByDescending { it.sourceOrder }
+                                    withUpdateNotification(
+                                        currentlyUpdatingManga,
+                                        progressCount,
+                                        manga,
+                                    ) {
+                                        try {
+                                            val newChapters = updateManga(manga, fetchWindow)
+                                                .sortedByDescending { it.sourceOrder }
 
-                                        if (newChapters.isNotEmpty()) {
-                                            val chaptersToDownload = filterChaptersForDownload.await(manga, newChapters)
+                                            if (newChapters.isNotEmpty()) {
+                                                val chaptersToDownload = filterChaptersForDownload.await(
+                                                    manga,
+                                                    newChapters,
+                                                )
 
-                                            if (chaptersToDownload.isNotEmpty()) {
-                                                downloadChapters(manga, chaptersToDownload)
-                                                hasDownloads.store(true)
+                                                if (chaptersToDownload.isNotEmpty()) {
+                                                    downloadChapters(manga, chaptersToDownload)
+                                                    hasDownloads.store(true)
+                                                }
+
+                                                // Sources update concurrently, and getAndSet is a separate read and write
+                                                synchronized(libraryPreferences.newUpdatesCount) {
+                                                    libraryPreferences.newUpdatesCount.getAndSet {
+                                                        it + newChapters.size
+                                                    }
+                                                }
+
+                                                // Convert to the manga that contains new chapters
+                                                newUpdates.add(manga to newChapters.toTypedArray())
                                             }
-
-                                            // Sources update concurrently, and getAndSet is a separate read and write
-                                            synchronized(libraryPreferences.newUpdatesCount) {
-                                                libraryPreferences.newUpdatesCount.getAndSet { it + newChapters.size }
+                                        } catch (e: Throwable) {
+                                            val errorMessage = when (e) {
+                                                is NoChaptersException -> context.stringResource(
+                                                    MR.strings.no_chapters_error,
+                                                )
+                                                // failedUpdates will already have the source, don't need to copy it into the message
+                                                is SourceNotInstalledException -> context.stringResource(
+                                                    MR.strings.loader_not_implemented_error,
+                                                )
+                                                else -> e.message
                                             }
-
-                                            // Convert to the manga that contains new chapters
-                                            newUpdates.add(manga to newChapters.toTypedArray())
+                                            failedUpdates.add(manga to errorMessage)
                                         }
-                                    } catch (e: Throwable) {
-                                        val errorMessage = when (e) {
-                                            is NoChaptersException -> context.stringResource(
-                                                MR.strings.no_chapters_error,
-                                            )
-                                            // failedUpdates will already have the source, don't need to copy it into the message
-                                            is SourceNotInstalledException -> context.stringResource(
-                                                MR.strings.loader_not_implemented_error,
-                                            )
-                                            else -> e.message
-                                        }
-                                        failedUpdates.add(manga to errorMessage)
                                     }
                                 }
                             }
                         }
                     }
-                }
-                .awaitAll()
-        }
-
-        notifier.cancelProgressNotification()
-
-        if (newUpdates.isNotEmpty()) {
-            notifier.showUpdateNotifications(newUpdates)
-            if (hasDownloads.load()) {
-                downloadManager.startDownloads()
+                    .awaitAll()
             }
-        }
+        } finally {
+            // A stopped update has still stored the chapters it found, so they must be notified and downloaded
+            withContext(NonCancellable) {
+                notifier.cancelProgressNotification()
 
-        if (failedUpdates.isNotEmpty()) {
-            val errorFile = writeErrorFile(failedUpdates)
-            notifier.showUpdateErrorNotification(
-                failedUpdates.size,
-                errorFile.getUriCompat(context),
-            )
+                if (newUpdates.isNotEmpty()) {
+                    notifier.showUpdateNotifications(newUpdates)
+                    if (hasDownloads.load()) {
+                        downloadManager.startDownloads()
+                    }
+                }
+
+                if (failedUpdates.isNotEmpty()) {
+                    val errorFile = writeErrorFile(failedUpdates)
+                    notifier.showUpdateErrorNotification(
+                        failedUpdates.size,
+                        errorFile.getUriCompat(context),
+                    )
+                }
+            }
         }
     }
 
