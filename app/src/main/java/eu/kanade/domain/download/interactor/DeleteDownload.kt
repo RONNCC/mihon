@@ -13,8 +13,6 @@ class DeleteDownload(
 ) {
 
     suspend fun awaitAll(manga: Manga, vararg chapters: Chapter) {
-        sourceManager.get(manga.source)?.let { source ->
-            downloadManager.deleteChapters(chapters.toList(), manga, source)
-        }
+        downloadManager.deleteChapters(chapters.toList(), manga, sourceManager.getOrStub(manga.source))
     }
 }
