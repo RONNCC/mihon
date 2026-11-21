@@ -27,10 +27,19 @@ class StorageManager(
     storagePreferences: StoragePreferences,
 ) {
 
+    private val baseStorageDirectory = storagePreferences.baseStorageDirectory
+
+    // The provider behind the URI can still be starting up on a cold start, so a directory that couldn't be
+    // resolved is looked up again on the next access instead of staying null until the preference changes. Keyed by
+    // URI so that a lookup racing a preference change can't store the old directory.
     @Volatile
-    private var baseDirLazy: Lazy<UniFile?> = lazy { getBaseDir(storagePreferences.baseStorageDirectory.get()) }
+    private var resolvedBaseDir: Pair<String, UniFile>? = null
     private val baseDir: UniFile?
-        get() = baseDirLazy.value
+        get() {
+            val uri = baseStorageDirectory.get()
+            resolvedBaseDir?.takeIf { (resolvedUri, _) -> resolvedUri == uri }?.let { return it.second }
+            return getBaseDir(uri)?.also { resolvedBaseDir = uri to it }
+        }
 
     // On SAF, createDirectory lists the whole base directory to find an existing child, so a resolved child
     // is reused while it's under the current base directory and still exists; it can be deleted outside the app
@@ -41,11 +50,10 @@ class StorageManager(
         .shareIn(scope, SharingStarted.Lazily, 1)
 
     init {
-        storagePreferences.baseStorageDirectory.changes()
+        baseStorageDirectory.changes()
             .drop(1)
             .distinctUntilChanged()
-            .onEach { uri ->
-                baseDirLazy = lazyOf(getBaseDir(uri))
+            .onEach {
                 baseDir?.let { parent ->
                     parent.createDirectory(AUTOMATIC_BACKUPS_PATH)
                     parent.createDirectory(LOCAL_SOURCE_PATH)
