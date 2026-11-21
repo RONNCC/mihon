@@ -23,6 +23,14 @@ Discover and read manga, webtoons, comics, and more – easier than ever on your
 
 *Requires Android 8.0 or higher.*
 
+## RONNCC fork
+
+This fork ([RONNCC/mihon](https://github.com/RONNCC/mihon)) adds fixes on top of upstream Mihon; see the [CHANGELOG](./CHANGELOG.md) for what differs.
+
+* **Install:** download `mihon-<tag>.apk` (or `mihon-arm64-v8a-<tag>.apk` for 64-bit ARM phones) from the [Releases](https://github.com/RONNCC/mihon/releases) page.
+* **Different signing key:** releases are signed with the fork's own key, not upstream Mihon's, so Android won't update upstream Mihon in place. Back up your library, then uninstall upstream Mihon first.
+* **Backup and restore:** in upstream Mihon use *More → Settings → Data and storage → Create backup*, install the fork, then use *Restore backup*. Later fork releases update in place.
+
 ## Features
 
 <div align="left">
