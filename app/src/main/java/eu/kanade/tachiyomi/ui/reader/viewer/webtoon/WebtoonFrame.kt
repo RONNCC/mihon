@@ -94,6 +94,7 @@ class WebtoonFrame(context: Context) : FrameLayout(context) {
      */
     inner class FlingListener : GestureDetector.SimpleOnGestureListener() {
         override fun onDown(e: MotionEvent): Boolean {
+            recycler?.stopZoomFling()
             return true
         }
 

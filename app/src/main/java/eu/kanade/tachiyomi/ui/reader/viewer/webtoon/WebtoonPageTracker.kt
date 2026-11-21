@@ -29,6 +29,7 @@ class WebtoonPageTracker(
         val item = items.items.getOrNull(position)
         val allowPreload = checkAllowPreload(item as? ReaderPage)
         if (item != null && currentPage != item) {
+            selectSkippedLastPages(position)
             currentPage = item
             when (item) {
                 is ReaderPage -> onPageSelected(item, allowPreload)
@@ -56,6 +57,26 @@ class WebtoonPageTracker(
         val lastItem = items.items.getOrNull(lastEndVisible)
         if (lastItem is ChapterTransition.Next && lastItem.to == null) {
             activity.showMenu()
+        }
+    }
+
+    /**
+     * Marks the last page of each chapter between the current item and [position] as active. A jump of most of a
+     * screen can pass it without it ever being the last item with a visible end, and it's what marks a chapter read.
+     */
+    private fun selectSkippedLastPages(position: Int) {
+        // Items rebuilt around another chapter, e.g. by jumping to it, aren't a scroll past the pages before
+        if ((currentPage as? ReaderPage)?.chapter != items.currentChapter) return
+
+        val current = items.items.indexOf(currentPage)
+        if (current == -1) return
+
+        for (i in current + 1 until position) {
+            val skipped = items.items[i]
+            if (skipped is ReaderPage && skipped.index == skipped.chapter.pages?.lastIndex) {
+                onPageSelected(skipped, checkAllowPreload(skipped))
+                currentPage = skipped
+            }
         }
     }
 

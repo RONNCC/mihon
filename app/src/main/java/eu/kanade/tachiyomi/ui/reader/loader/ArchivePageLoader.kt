@@ -25,10 +25,6 @@ internal class ArchivePageLoader(private val reader: ArchiveReader) : PageLoader
             .toList()
     }
 
-    override suspend fun loadPage(page: ReaderPage) {
-        check(!isRecycled)
-    }
-
     override fun recycle() {
         super.recycle()
         reader.close()

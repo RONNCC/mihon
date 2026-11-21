@@ -8,7 +8,7 @@ import java.nio.ByteBuffer
 import kotlin.concurrent.Volatile
 import mihon.core.archive.ArchiveEntry as MihonArchiveEntry
 
-internal class ArchiveInputStream(buffer: Long, size: Long) : InputStream() {
+internal class ArchiveInputStream(buffer: Long, size: Long, private val onClose: () -> Unit) : InputStream() {
     private val lock = Any()
 
     @Volatile
@@ -54,6 +54,7 @@ internal class ArchiveInputStream(buffer: Long, size: Long) : InputStream() {
         }
 
         Archive.readFree(archive)
+        onClose()
     }
 
     fun getNextEntry(): MihonArchiveEntry? {
