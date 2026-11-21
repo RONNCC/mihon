@@ -124,7 +124,8 @@ class DownloadProvider(
     }
 
     /**
-     * Returns a list of downloaded directories for the chapters that exist.
+     * Returns a list of downloaded directories for the chapters that exist, along with what an interrupted
+     * download of them left behind.
      *
      * @param chapters the chapters to query.
      * @param manga the manga of the chapter.
@@ -136,7 +137,14 @@ class DownloadProvider(
         source: Source,
     ): Pair<UniFile?, List<UniFile>> = withContext(Dispatchers.IO) {
         val mangaDir = findMangaDir(manga.title, source) ?: return@withContext null to emptyList()
-        mangaDir to findChapterDirs(chapters, mangaDir).values.toList()
+        val leftovers = chapters.flatMap { chapter ->
+            val dirName = getChapterDirName(chapter.name, chapter.scanlator, chapter.url)
+            listOfNotNull(
+                mangaDir.findFile(dirName + Downloader.TMP_DIR_SUFFIX),
+                mangaDir.findFile("$dirName.cbz${Downloader.TMP_DIR_SUFFIX}"),
+            )
+        }
+        mangaDir to findChapterDirs(chapters, mangaDir).values.toList() + leftovers
     }
 
     /**

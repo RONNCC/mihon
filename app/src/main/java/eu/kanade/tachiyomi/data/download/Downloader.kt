@@ -459,6 +459,12 @@ class Downloader(
                 reIndexedPages
             }
 
+            // A page list that differs from the one an earlier attempt started with leaves files that would
+            // otherwise make the chapter fail the page count check on every retry, or end up in its archive
+            val files = tmpDir.listFiles().orEmpty()
+            val staleFileNames = staleChapterFileNames(files.mapNotNull { it.name }, pageList.size).toSet()
+            files.filter { it.name in staleFileNames }.forEach { it.delete() }
+
             download.status = Download.State.DOWNLOADING
 
             // Start downloading images, consider we can have downloaded images already
@@ -531,8 +537,7 @@ class Downloader(
             return
         }
 
-        val digitCount = (download.pages?.size ?: 0).toString().length.coerceAtLeast(3)
-        val filename = "%0${digitCount}d".format(Locale.ENGLISH, page.number)
+        val filename = pageFilePrefix(page.number, download.pages?.size ?: 0)
 
         // Try to find the image file
         val imageFile = tmpDir.listFiles()?.firstOrNull {
@@ -859,3 +864,23 @@ class Downloader(
 
 // Arbitrary minimum required space to start a download: 200 MB
 private const val MIN_DISK_SPACE = 200L * 1024 * 1024
+
+/**
+ * Returns the prefix of the files of a page, padded so the pages of a chapter sort by number.
+ */
+internal fun pageFilePrefix(pageNumber: Int, pageCount: Int): String {
+    val digitCount = pageCount.toString().length.coerceAtLeast(3)
+    return "%0${digitCount}d".format(Locale.ENGLISH, pageNumber)
+}
+
+/**
+ * Returns the names in [fileNames] that belong to none of the [pageCount] pages of a chapter. The page files of
+ * the chapter, their partial downloads and split pages, ComicInfo and .nomedia are kept.
+ */
+internal fun staleChapterFileNames(fileNames: List<String>, pageCount: Int): List<String> {
+    val prefixes = (1..pageCount).mapTo(HashSet()) { pageFilePrefix(it, pageCount) }
+    return fileNames.filter { name ->
+        name != COMIC_INFO_FILE && name != NOMEDIA_FILE &&
+            name.substringBefore('.').substringBefore("__") !in prefixes
+    }
+}
