@@ -46,10 +46,10 @@ class DelayedTrackingUpdateWorker(private val context: Context, workerParams: Wo
             delayedTrackingStore.getItems()
                 .mapNotNull {
                     val track = getTracks.awaitOne(it.trackId)
-                    // Nothing left to send: the track is gone, its tracker logged out or the progress already synced
+                    // Nothing left to send: the track or its tracker is gone, or the progress already synced
                     if (
                         track == null ||
-                        trackerManager.get(track.trackerId)?.isLoggedIn != true ||
+                        trackerManager.get(track.trackerId) == null ||
                         it.lastChapterRead <= track.lastChapterRead
                     ) {
                         delayedTrackingStore.remove(it.trackId)
