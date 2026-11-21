@@ -68,4 +68,19 @@ class WebtoonPageTrackerTest {
 
         verify(exactly = 0) { activity.onPageSelected(pages[3]) }
     }
+
+    @Test
+    fun `Jumping to another chapter does not select the pages left behind`() {
+        val first = chapter(1, pageCount = 6)
+        val second = chapter(2, pageCount = 3)
+        items.setChapters(ViewerChapters(first, null, second), forceTransition = false)
+        val firstPages = first.pages!!
+
+        tracker.onScrolled(items.items.indexOf(firstPages[3]))
+        items.setChapters(ViewerChapters(second, first, null), forceTransition = false)
+        tracker.onScrolled(items.items.indexOf(second.pages!![0]))
+
+        verify(exactly = 0) { activity.onPageSelected(firstPages[5]) }
+        verify { activity.onPageSelected(second.pages!![0]) }
+    }
 }

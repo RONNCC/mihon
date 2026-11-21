@@ -65,6 +65,9 @@ class WebtoonPageTracker(
      * screen can pass it without it ever being the last item with a visible end, and it's what marks a chapter read.
      */
     private fun selectSkippedLastPages(position: Int) {
+        // Items rebuilt around another chapter, e.g. by jumping to it, aren't a scroll past the pages before
+        if ((currentPage as? ReaderPage)?.chapter != items.currentChapter) return
+
         val current = items.items.indexOf(currentPage)
         if (current == -1) return
 
