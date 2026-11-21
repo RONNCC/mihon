@@ -779,14 +779,7 @@ class Downloader(
         }
     }
 
-    private fun removeFromQueue(chapters: List<Chapter>) {
-        val chapterIds = chapters.map { it.id }
-        removeFromQueueIf { it.chapter.id in chapterIds }
-    }
-
-    suspend fun removeFromQueue(manga: Manga) = lock.withLock {
-        removeFromQueueIf { it.manga.id == manga.id }
-    }
+    suspend fun removeFromQueue(manga: Manga) = dequeueIf { it.manga.id == manga.id }
 
     private fun internalClearQueue() {
         _queueState.update {
@@ -826,8 +819,23 @@ class Downloader(
     /**
      * Removes [chapters] from the queue, keeping the state of the downloads that stay.
      */
-    suspend fun dequeue(chapters: List<Chapter>) = editQueue {
-        removeFromQueue(chapters)
+    suspend fun dequeue(chapters: List<Chapter>) {
+        val chapterIds = chapters.mapTo(HashSet()) { it.id }
+        dequeueIf { it.chapter.id in chapterIds }
+    }
+
+    private suspend fun dequeueIf(predicate: (Download) -> Boolean) {
+        // Leaves the running downloads alone when none of them is affected
+        if (queueState.value.none(predicate)) return
+
+        var canceledJob: Job? = null
+        editQueue {
+            canceledJob = downloaderJob
+            removeFromQueueIf(predicate)
+        }
+        // A canceled job can still be moving its chapter into place, which would bring back what the caller
+        // deletes next
+        canceledJob?.join()
     }
 
     private suspend inline fun editQueue(edit: () -> Unit) = lock.withLock {
