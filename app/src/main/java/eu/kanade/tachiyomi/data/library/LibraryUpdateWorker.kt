@@ -72,6 +72,7 @@ import tachiyomi.domain.source.model.SourceNotInstalledException
 import tachiyomi.domain.source.service.SourceManager
 import tachiyomi.i18n.MR
 import java.io.File
+import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.atomics.AtomicBoolean
@@ -266,6 +267,9 @@ class LibraryUpdateWorker(private val context: Context, workerParams: WorkerPara
                     .map { mangaInSource ->
                         async {
                             semaphore.withPermit {
+                                // Stop hammering a source that keeps failing to connect
+                                var consecutiveIoFailures = 0
+                                var sourceUnreachable: IOException? = null
                                 mangaInSource.forEach { libraryManga ->
                                     val manga = libraryManga.manga
                                     ensureActive()
@@ -281,8 +285,11 @@ class LibraryUpdateWorker(private val context: Context, workerParams: WorkerPara
                                         manga,
                                     ) {
                                         try {
+                                            sourceUnreachable?.let { throw it }
+
                                             val newChapters = updateManga(manga, fetchWindow)
                                                 .sortedByDescending { it.sourceOrder }
+                                            consecutiveIoFailures = 0
 
                                             if (newChapters.isNotEmpty()) {
                                                 val chaptersToDownload = filterChaptersForDownload.await(
@@ -306,6 +313,13 @@ class LibraryUpdateWorker(private val context: Context, workerParams: WorkerPara
                                                 newUpdates.add(manga to newChapters.toTypedArray())
                                             }
                                         } catch (e: Throwable) {
+                                            if (e is IOException) {
+                                                if (++consecutiveIoFailures >= MAX_CONSECUTIVE_IO_FAILURES) {
+                                                    sourceUnreachable = e
+                                                }
+                                            } else {
+                                                consecutiveIoFailures = 0
+                                            }
                                             val errorMessage = when (e) {
                                                 is NoChaptersException -> context.stringResource(
                                                     MR.strings.no_chapters_error,
@@ -441,6 +455,8 @@ class LibraryUpdateWorker(private val context: Context, workerParams: WorkerPara
         private const val ERROR_LOG_HELP_URL = "https://mihon.app/docs/guides/troubleshooting/"
 
         private const val MANGA_PER_SOURCE_QUEUE_WARNING_THRESHOLD = 60
+
+        private const val MAX_CONSECUTIVE_IO_FAILURES = 3
 
         /**
          * Key for category to update.
