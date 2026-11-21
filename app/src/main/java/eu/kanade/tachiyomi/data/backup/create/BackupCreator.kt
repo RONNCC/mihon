@@ -64,22 +64,9 @@ class BackupCreator(
     suspend fun backup(uri: Uri, options: BackupOptions): String {
         var file: UniFile? = null
         try {
-            file = if (isAutoBackup) {
-                // Get dir of file and create
-                val dir = UniFile.fromUri(context, uri)
-
-                // Delete older backups
-                dir?.listFiles { _, filename -> FILENAME_REGEX.matches(filename) }
-                    .orEmpty()
-                    .sortedByDescending { it.name }
-                    .drop(MAX_AUTO_BACKUPS - 1)
-                    .forEach { it.delete() }
-
-                // Create new file to place backup
-                dir?.createFile(getFilename())
-            } else {
-                UniFile.fromUri(context, uri)
-            }
+            val dir = UniFile.fromUri(context, uri)
+            // Auto backups go in a new file of the directory
+            file = if (isAutoBackup) dir?.createFile(getFilename()) else dir
 
             if (file == null || !file.isFile) {
                 throw IllegalStateException(context.stringResource(MR.strings.create_backup_file_error))
@@ -121,6 +108,10 @@ class BackupCreator(
 
             if (isAutoBackup) {
                 backupPreferences.lastAutoBackupTimestamp.set(Clock.System.now().toEpochMilliseconds())
+
+                // Only rotate once the new backup is known to be good
+                val backups = dir?.listFiles { _, filename -> FILENAME_REGEX.matches(filename) }.orEmpty().toList()
+                getBackupsToDelete(backups, file).forEach { it.delete() }
             }
 
             return fileUri.toString()
@@ -168,6 +159,17 @@ class BackupCreator(
     companion object {
         private const val MAX_AUTO_BACKUPS: Int = 4
         private val FILENAME_REGEX = """${BuildConfig.APPLICATION_ID}_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}.tachibk""".toRegex()
+
+        /**
+         * Returns the oldest of [backups] to delete so that, with [current], at most [MAX_AUTO_BACKUPS] remain.
+         * [current] is never returned, whatever its name sorts as.
+         */
+        internal fun getBackupsToDelete(backups: List<UniFile>, current: UniFile): List<UniFile> {
+            return backups
+                .filter { it.uri != current.uri }
+                .sortedByDescending { it.name }
+                .drop(MAX_AUTO_BACKUPS - 1)
+        }
 
         fun getFilename(): String {
             val date = SimpleDateFormat("yyyy-MM-dd_HH-mm", Locale.ENGLISH).format(Date())
