@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -76,6 +77,7 @@ import eu.kanade.presentation.reader.ReadingModeSelectDialog
 import eu.kanade.presentation.reader.appbars.ReaderAppBars
 import eu.kanade.presentation.reader.components.ChapterNavigatorType
 import eu.kanade.presentation.reader.settings.ReaderSettingsDialog
+import eu.kanade.presentation.util.rememberSaveImagePermissionRequester
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
@@ -279,8 +281,12 @@ class ReaderActivity : BaseActivity() {
                 )
             }
 
+            // Outside the dialog, which is gone by the time the permission prompt answers
+            var pendingSave by remember { mutableStateOf<ReaderPage?>(null) }
+            val saveImage = rememberSaveImagePermissionRequester { pendingSave?.let(viewModel::saveImage) }
+
             val onDismissRequest = viewModel::closeDialog
-            when (state.dialog) {
+            when (val dialog = state.dialog) {
                 is ReaderViewModel.Dialog.Settings -> {
                     ReaderSettingsDialog(
                         onDismissRequest = onDismissRequest,
@@ -316,7 +322,10 @@ class ReaderActivity : BaseActivity() {
                         onDismissRequest = onDismissRequest,
                         onSetAsCover = viewModel::setAsCover,
                         onShare = viewModel::shareImage,
-                        onSave = viewModel::saveImage,
+                        onSave = {
+                            pendingSave = dialog.page
+                            saveImage()
+                        },
                     )
                 }
                 null -> {}
@@ -456,11 +465,14 @@ class ReaderActivity : BaseActivity() {
     private fun ReaderViewer() {
         val viewer by viewerFlow.collectAsState()
         val general by settingsViewModel.general.collectAsState()
-        val insets = when {
-            !general.fullscreen -> WindowInsets.systemBars
-            !general.drawUnderCutout -> WindowInsets.displayCutout
-            else -> WindowInsets(0)
+        // The system bars don't include the display cutout, so each is kept clear on its own
+        val systemBars = if (general.fullscreen) WindowInsets(0) else WindowInsets.systemBars
+        val cutout = if (avoidsDisplayCutout(general.fullscreen, general.drawUnderCutout)) {
+            WindowInsets.displayCutout
+        } else {
+            WindowInsets(0)
         }
+        val insets = systemBars.union(cutout)
         val colorFilter = remember(general.grayscale, general.invertedColors) {
             viewerColorFilter(general.grayscale, general.invertedColors)
         }
@@ -898,3 +910,9 @@ private fun viewerColorFilter(grayscale: Boolean, invertedColors: Boolean): Colo
     }
     return ColorFilter.colorMatrix(matrix)
 }
+
+/**
+ * The draw under cutout setting is only offered in fullscreen, where it defaults to on, so outside fullscreen the
+ * cutout is always avoided.
+ */
+internal fun avoidsDisplayCutout(fullscreen: Boolean, drawUnderCutout: Boolean) = !fullscreen || !drawUnderCutout

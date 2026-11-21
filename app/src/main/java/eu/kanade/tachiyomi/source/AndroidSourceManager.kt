@@ -7,6 +7,7 @@ import dev.zacsweers.metro.SingleIn
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.extension.ExtensionManager
 import eu.kanade.tachiyomi.source.online.HttpSource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,7 +16,9 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import logcat.LogPriority
 import mihon.core.metro.AppCoroutineScope
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.source.model.StubSource
 import tachiyomi.domain.source.repository.StubSourceRepository
 import tachiyomi.domain.source.service.SourceManager
@@ -101,11 +104,19 @@ class AndroidSourceManager(
 
     private fun registerStubSource(source: StubSource) {
         scope.launch {
-            val dbSource = sourceRepository.getStubSource(source.id)
-            if (dbSource == source) return@launch
-            sourceRepository.upsertStubSource(source.id, source.lang, source.name)
-            if (dbSource != null) {
-                downloadManager.value.renameSource(dbSource, source)
+            // Installing many extensions at once can leave the database busy. Nothing depends on this write
+            // finishing, since the next extension load registers the source again.
+            try {
+                val dbSource = sourceRepository.getStubSource(source.id)
+                if (dbSource == source) return@launch
+                sourceRepository.upsertStubSource(source.id, source.lang, source.name)
+                if (dbSource != null) {
+                    downloadManager.value.renameSource(dbSource, source)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e) { "Failed to register stub source ${source.id}" }
             }
         }
     }

@@ -151,7 +151,9 @@ class LibraryViewModel(
         combine(tracks, getTrackingFiltersFlow(), ::Pair),
         getLibraryItemPreferencesFlow(),
     ) { searchQuery, categories, favorites, (tracksMap, trackingFilters), itemPreferences ->
-        val showSystemCategory = favorites.any { it.libraryManga.categories.contains(0) }
+        // Without any other category the library would have no page to show the global search button on
+        val showSystemCategory = favorites.any { it.libraryManga.categories.contains(0) } ||
+            categories.all { it.isSystemCategory }
         val filteredFavorites = favorites
             .applyFilters(tracksMap, trackingFilters, itemPreferences)
             .let { libraryItems ->

@@ -38,7 +38,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -313,7 +312,6 @@ fun SearchToolbar(
                 onSearch(query)
                 focusManager.clearFocus()
                 keyboardController?.hide()
-                focusManager.moveFocus(FocusDirection.Next)
             }
 
             BasicTextField(
@@ -322,7 +320,7 @@ fun SearchToolbar(
                     .fillMaxWidth()
                     .focusRequester(focusRequester)
                     .runOnEnterKeyPressed(action = searchAndClearFocus)
-                    .showSoftKeyboard(remember { searchQuery.isEmpty() })
+                    .showSoftKeyboard(searchQuery.isEmpty() && remember { searchQuery.isEmpty() })
                     .clearFocusOnSoftKeyboardHide(),
                 textStyle = MaterialTheme.typography.titleMedium.copy(
                     color = MaterialTheme.colorScheme.onBackground,

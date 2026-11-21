@@ -39,7 +39,7 @@ fun OnboardingScreen() {
         onComplete = finishOnboarding,
         onRestoreBackup = {
             finishOnboarding()
-            SearchableSettings.highlightKey = restoreSettingKey
+            SearchableSettings.highlightKey = SearchableSettings.HighlightKey(restoreSettingKey)
             navigator.openSettings(SettingsDataScreen, isTabletUi)
         },
     )

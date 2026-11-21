@@ -32,6 +32,7 @@ import eu.kanade.presentation.manga.components.ScanlatorFilterDialog
 import eu.kanade.presentation.manga.components.SetIntervalDialog
 import eu.kanade.presentation.more.settings.screen.SettingsTrackingScreen
 import eu.kanade.presentation.more.settings.screen.openSettings
+import eu.kanade.presentation.util.rememberSaveImagePermissionRequester
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.isLocalOrStub
 import eu.kanade.tachiyomi.source.online.HttpSource
@@ -252,12 +253,13 @@ fun MangaScreen(
                     if (it == null) return@rememberLauncherForActivityResult
                     vm.editCover(context, it)
                 }
+                val saveCover = rememberSaveImagePermissionRequester { vm.saveCover(context) }
                 MangaCoverDialog(
                     manga = manga!!,
                     snackbarHostState = vm.snackbarHostState,
                     isCustomCover = remember(manga) { vm.hasCustomCover() },
                     onShareClick = { vm.shareCover(context) },
-                    onSaveClick = { vm.saveCover(context) },
+                    onSaveClick = saveCover,
                     onEditClick = {
                         when (it) {
                             EditCoverAction.EDIT -> getContent.launch("image/*")

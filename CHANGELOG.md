@@ -45,6 +45,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Fix Kavita tracking failing for series with fractional ratings ([@Zehkul](https://github.com/Zehkul)) ([#4200](https://github.com/mihonapp/mihon/pull/4200))
 - Fix the tracking start date staying empty when starting to track by setting the first chapter read ([@ashishsinghbora](https://github.com/ashishsinghbora)) ([#3930](https://github.com/mihonapp/mihon/pull/3930))
 - Fix taps around the tracker search buttons selecting a result underneath ([@kaosjammo](https://github.com/kaosjammo)) ([#4042](https://github.com/mihonapp/mihon/pull/4042))
+- Fix settings search highlighting every entry with the same title and scrolling to the first one ([@yuvarajvodiboina](https://github.com/yuvarajvodiboina))
 
 ## [v0.21.3] - 2026-10-26
 ### Added
