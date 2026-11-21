@@ -40,6 +40,11 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 
 ### Fixed
 - Fix extension settings showing duplicate entries after the app is restored from the background ([@AntsyLich](https://github.com/AntsyLich))
+- Fix the tracker date picker rejecting valid start and finish dates in time zones ahead of UTC ([#3126](https://github.com/mihonapp/mihon/issues/3126))
+- Fix chapter progress being sent to the tracker more than once when a chapter's last page is reached repeatedly ([@SnegOwo](https://github.com/SnegOwo)) ([#4306](https://github.com/mihonapp/mihon/pull/4306))
+- Fix Kavita tracking failing for series with fractional ratings ([@Zehkul](https://github.com/Zehkul)) ([#4200](https://github.com/mihonapp/mihon/pull/4200))
+- Fix the tracking start date staying empty when starting to track by setting the first chapter read ([@ashishsinghbora](https://github.com/ashishsinghbora)) ([#3930](https://github.com/mihonapp/mihon/pull/3930))
+- Fix taps around the tracker search buttons selecting a result underneath ([@kaosjammo](https://github.com/kaosjammo)) ([#4042](https://github.com/mihonapp/mihon/pull/4042))
 
 ## [v0.21.3] - 2026-10-26
 ### Added
