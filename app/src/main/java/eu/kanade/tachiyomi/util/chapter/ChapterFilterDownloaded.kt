@@ -6,10 +6,13 @@ import tachiyomi.domain.manga.model.Manga
 import tachiyomi.source.local.isLocal
 
 /**
- * Returns a copy of the list with not downloaded chapters removed.
+ * Returns a copy of the list with not downloaded chapters removed, except the chapter with [keepChapterId].
  */
-fun List<Chapter>.filterDownloaded(manga: Manga, downloadCache: DownloadCache): List<Chapter> {
+fun List<Chapter>.filterDownloaded(manga: Manga, downloadCache: DownloadCache, keepChapterId: Long): List<Chapter> {
     if (manga.isLocal()) return this
 
-    return filter { downloadCache.isChapterDownloaded(it.name, it.scanlator, it.url, manga.title, manga.source) }
+    return filter {
+        it.id == keepChapterId ||
+            downloadCache.isChapterDownloaded(it.name, it.scanlator, it.url, manga.title, manga.source)
+    }
 }

@@ -287,7 +287,7 @@ class ReaderViewModel(
             }
             .run {
                 if (basePreferences.downloadedOnly.get()) {
-                    filterDownloaded(manga, downloadCache)
+                    filterDownloaded(manga, downloadCache, keepChapterId = chapterId)
                 } else {
                     this
                 }
