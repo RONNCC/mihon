@@ -118,13 +118,14 @@ class SyncChaptersWithSource(
                 newChapters.add(toAddChapter)
             } else {
                 if (shouldUpdateDbChapter.await(dbChapter, chapter)) {
+                    // Checked on disk: the in-memory cache can be empty or still loading, which would orphan the folder
                     val shouldRenameChapter = downloadProvider.isChapterDirNameChanged(dbChapter, chapter) &&
-                        downloadManager.isChapterDownloaded(
+                        downloadManager.isChapterDownloadedOnDisk(
                             dbChapter.name,
                             dbChapter.scanlator,
                             dbChapter.url,
                             manga.title,
-                            manga.source,
+                            source,
                         )
 
                     if (shouldRenameChapter) {
