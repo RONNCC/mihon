@@ -35,15 +35,19 @@ class HikkaInterceptorTest {
     }
 
     @Test
-    fun `a transient server error keeps the user logged in`() {
-        assertThrows(IOException::class.java) { HikkaInterceptor(hikka, Json).intercept(chainRespondingWith(503)) }
+    fun `server errors and rate limits keep the user logged in`() {
+        listOf(408, 429, 502, 503).forEach { code ->
+            assertThrows(IOException::class.java) {
+                HikkaInterceptor(hikka, Json).intercept(chainRespondingWith(code))
+            }
+        }
 
         verify(exactly = 0) { hikka.logout() }
     }
 
     @Test
     fun `a rejected token logs the user out`() {
-        assertThrows(Exception::class.java) { HikkaInterceptor(hikka, Json).intercept(chainRespondingWith(401)) }
+        assertThrows(IOException::class.java) { HikkaInterceptor(hikka, Json).intercept(chainRespondingWith(400)) }
 
         verify(exactly = 1) { hikka.logout() }
     }

@@ -41,10 +41,11 @@ class HikkaInterceptor(
         if (!refreshTokenResponse.isSuccessful) {
             val code = refreshTokenResponse.code
             refreshTokenResponse.close()
-            // Only an explicit rejection means the token is dead; rate limits and server errors are transient
-            if (code == 401) {
+            // Hikka answers an invalid or expired token with 400, so any client error except the retryable ones
+            // means the token is dead, while timeouts, rate limits and server errors are transient
+            if (code in 400..499 && code != 408 && code != 429) {
                 hikka.logout()
-                throw Exception("Hikka: The token is expired")
+                throw IOException("Hikka: The token is expired")
             }
             throw IOException("Hikka: Token check failed with HTTP $code")
         }
