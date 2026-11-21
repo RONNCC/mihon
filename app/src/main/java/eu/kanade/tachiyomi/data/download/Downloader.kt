@@ -110,15 +110,14 @@ class Downloader(
         get() = downloaderJob?.isActive ?: false
 
     /**
-     * Whether the downloader is paused
+     * Whether the user paused the downloader. Queuing chapters doesn't start it again until it's started.
      */
     @Volatile
     var isPaused: Boolean = false
 
-    init {
-        scope.launch(Dispatchers.Main, CoroutineStart.UNDISPATCHED) {
-            addAllToQueue(withContext(Dispatchers.IO) { store.restore() })
-        }
+    // The restore waits for the sources to load, so a start has to wait for it too or it finds the queue empty
+    private val restoreJob = scope.launch(Dispatchers.Main, CoroutineStart.UNDISPATCHED) {
+        addAllToQueue(withContext(Dispatchers.IO) { store.restore() })
     }
 
     /**
@@ -127,7 +126,10 @@ class Downloader(
      *
      * @return true if the downloader is started, false otherwise.
      */
-    suspend fun start(): Boolean = lock.withLock { startLocked() }
+    suspend fun start(): Boolean {
+        restoreJob.join()
+        return lock.withLock { startLocked() }
+    }
 
     /**
      * Stops the downloader.
@@ -149,6 +151,7 @@ class Downloader(
      */
     suspend fun pause() = lock.withLock {
         pauseLocked()
+        isPaused = true
         stopLocked()
     }
 
@@ -159,6 +162,7 @@ class Downloader(
         cancelDownloaderJob()
 
         internalClearQueue()
+        isPaused = false
         notifier.dismissProgress()
     }
 
@@ -193,8 +197,6 @@ class Downloader(
         } else {
             notifier.onComplete()
         }
-
-        isPaused = false
     }
 
     private fun pauseLocked() {
@@ -202,7 +204,6 @@ class Downloader(
         queueState.value
             .filter { it.status == Download.State.DOWNLOADING }
             .forEach { it.status = Download.State.QUEUE }
-        isPaused = true
     }
 
     /**
@@ -375,7 +376,7 @@ class Downloader(
             addAllToQueue(chaptersToQueue)
 
             // Start downloader if needed
-            if (autoStart && wasEmpty) {
+            if (autoStart && !isRunning && (wasEmpty || !isPaused)) {
                 val queuedDownloads = queueState.value.count { it.source !is UnmeteredSource }
                 val maxDownloadsFromSource = queueState.value
                     .groupBy { it.source }
