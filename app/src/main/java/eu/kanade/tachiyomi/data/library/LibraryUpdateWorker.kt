@@ -117,8 +117,9 @@ class LibraryUpdateWorker(private val context: Context, workerParams: WorkerPara
                 }
             }
 
-            // Find a running manual worker. If exists, try again later
-            if (context.workManager.isRunning(WORK_NAME_MANUAL)) {
+            // Find a running manual or metadata worker. If exists, try again later
+            val workManager = context.workManager
+            if (workManager.isRunning(WORK_NAME_MANUAL) || workManager.isRunning(MetadataUpdateWorker.TAG)) {
                 return Result.retry()
             }
         }
@@ -423,7 +424,7 @@ class LibraryUpdateWorker(private val context: Context, workerParams: WorkerPara
     }
 
     companion object {
-        private const val TAG = "LibraryUpdate"
+        internal const val TAG = "LibraryUpdate"
         private const val WORK_NAME_AUTO = "LibraryUpdate-auto"
         private const val WORK_NAME_MANUAL = "LibraryUpdate-manual"
 
@@ -492,8 +493,8 @@ class LibraryUpdateWorker(private val context: Context, workerParams: WorkerPara
             workManager: WorkManager,
             category: Category? = null,
         ): Boolean {
-            if (workManager.isRunning(TAG)) {
-                // Already running either as a scheduled or manual job
+            if (workManager.isRunning(TAG) || workManager.isRunning(MetadataUpdateWorker.TAG)) {
+                // Already running either as a scheduled or manual job, or sharing the progress notification
                 return false
             }
 

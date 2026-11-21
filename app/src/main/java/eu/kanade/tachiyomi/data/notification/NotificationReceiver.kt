@@ -10,6 +10,7 @@ import dev.zacsweers.metro.Inject
 import eu.kanade.tachiyomi.data.backup.restore.BackupRestoreWorker
 import eu.kanade.tachiyomi.data.download.DownloadManager
 import eu.kanade.tachiyomi.data.library.LibraryUpdateWorker
+import eu.kanade.tachiyomi.data.library.MetadataUpdateWorker
 import eu.kanade.tachiyomi.ui.main.MainActivity
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
 import eu.kanade.tachiyomi.util.system.cancelNotification
@@ -155,6 +156,7 @@ class NotificationReceiver : BroadcastReceiver() {
     private fun cancelLibraryUpdate(context: Context) {
         launchAsync {
             LibraryUpdateWorker.stop(context)
+            MetadataUpdateWorker.stop(context.workManager)
         }
     }
 
