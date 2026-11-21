@@ -7,11 +7,11 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import tachiyomi.domain.track.interactor.GetTracks
 import tachiyomi.domain.track.interactor.UpsertTrack
@@ -69,32 +69,74 @@ class TrackChapterTest {
     }
 
     @Test
-    fun `remote progress ahead of the chapter is not lowered`() = runTest(UnconfinedTestDispatcher()) {
-        val store = mockk<DelayedTrackingStore>(relaxed = true)
+    fun `remote progress ahead of the chapter is not lowered but is stored locally`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val store = FakeQueue()
+            val tracker = mockk<BaseTracker>()
+            every { tracker.isLoggedIn } returns true
+            coEvery { tracker.refresh(any()) } answers { firstArg<DbTrack>().also { it.last_chapter_read = 20.0 } }
+            val upsertTrack = mockk<UpsertTrack>(relaxed = true)
+
+            TrackChapter(getTracks(track(lastChapterRead = 5.0)), trackerManager(tracker), upsertTrack, store.store)
+                .await(mockk(), 10L, 6.0)
+
+            coVerify(exactly = 0) { tracker.update(any(), any()) }
+            coVerify { upsertTrack.await(match { it.lastChapterRead == 20.0 }) }
+        }
+
+    @Test
+    fun `a queued higher chapter survives a call for a chapter the local progress covers`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val store = FakeQueue(1L to 10.0)
+            val tracker = mockk<BaseTracker>()
+            every { tracker.isLoggedIn } returns true
+
+            TrackChapter(getTracks(track(lastChapterRead = 8.0)), trackerManager(tracker), mockk(), store.store)
+                .await(mockk(), 10L, 3.0, setupJobOnFailure = false)
+
+            assertEquals(mapOf(1L to 10.0), store.items)
+        }
+
+    @Test
+    fun `a queued chapter the local progress covers is dropped`() = runTest(UnconfinedTestDispatcher()) {
+        val store = FakeQueue(1L to 7.0)
         val tracker = mockk<BaseTracker>()
         every { tracker.isLoggedIn } returns true
-        coEvery { tracker.refresh(any()) } answers { firstArg<DbTrack>().also { it.last_chapter_read = 20.0 } }
 
-        TrackChapter(getTracks(track(lastChapterRead = 5.0)), trackerManager(tracker), mockk(), store)
-            .await(mockk(), 10L, 6.0)
+        TrackChapter(getTracks(track(lastChapterRead = 8.0)), trackerManager(tracker), mockk(), store.store)
+            .await(mockk(), 10L, 3.0, setupJobOnFailure = false)
 
-        coVerify(exactly = 0) { tracker.update(any(), any()) }
-        verify { store.remove(1L) }
+        assertEquals(emptyMap<Long, Double>(), store.items)
     }
 
     @Test
-    fun `stale delayed entry is dropped when the local progress is already ahead`() = runTest(
-        UnconfinedTestDispatcher(),
-    ) {
-        val store = mockk<DelayedTrackingStore>(relaxed = true)
-        val tracker = mockk<BaseTracker>()
-        every { tracker.isLoggedIn } returns true
+    fun `a queued higher chapter survives a call for a chapter the remote progress covers`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val store = FakeQueue(1L to 10.0)
+            val tracker = mockk<BaseTracker>()
+            every { tracker.isLoggedIn } returns true
+            coEvery { tracker.refresh(any()) } answers { firstArg<DbTrack>().also { it.last_chapter_read = 8.0 } }
 
-        TrackChapter(getTracks(track(lastChapterRead = 10.0)), trackerManager(tracker), mockk(), store)
-            .await(mockk(), 10L, 7.0, setupJobOnFailure = false)
+            TrackChapter(
+                getTracks(track(lastChapterRead = 2.0)),
+                trackerManager(tracker),
+                mockk(relaxed = true),
+                store.store,
+            )
+                .await(mockk(), 10L, 5.0, setupJobOnFailure = false)
 
-        verify { store.remove(1L) }
-        coVerify(exactly = 0) { tracker.refresh(any()) }
+            assertEquals(mapOf(1L to 10.0), store.items)
+        }
+
+    private class FakeQueue(vararg initial: Pair<Long, Double>) {
+        val items = mutableMapOf(*initial)
+        val store = mockk<DelayedTrackingStore>().also { store ->
+            every { store.remove(any()) } answers { items.remove(firstArg()) }
+            every { store.removeIfCovered(any(), any()) } answers {
+                if ((items[firstArg()] ?: Double.MAX_VALUE) <= secondArg<Double>()) items.remove(firstArg<Long>())
+            }
+            every { store.add(any(), any()) } answers { items[firstArg()] = secondArg() }
+        }
     }
 
     private fun track(lastChapterRead: Double) = Track(
