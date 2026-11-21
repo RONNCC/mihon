@@ -25,6 +25,7 @@ class WebtoonRecyclerView @JvmOverloads constructor(
     defStyle: Int = 0,
 ) : RecyclerView(context, attrs, defStyle) {
 
+    private var flingAnimator: AnimatorSet? = null
     private var isZooming = false
     private var atLastPosition = false
     private var atFirstPosition = false
@@ -153,11 +154,20 @@ class WebtoonRecyclerView @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Stops the fling started by [zoomFling], whose horizontal translation isn't a scroll the list stops itself.
+     */
+    fun stopZoomFling() {
+        flingAnimator?.cancel()
+    }
+
     fun zoomFling(velocityX: Int, velocityY: Int): Boolean {
         if (currentScale <= 1f) return false
 
+        stopZoomFling()
         val distanceTimeFactor = 0.4f
         val animatorSet = AnimatorSet()
+        flingAnimator = animatorSet
 
         if (velocityX != 0) {
             val dx = (distanceTimeFactor * velocityX / 2)
