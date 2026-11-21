@@ -41,10 +41,16 @@ class LocalCoverManager(
 
         val targetFile = find(manga.url) ?: directory.createFile(DEFAULT_COVER_NAME)!!
 
-        inputStream.use { input ->
-            targetFile.openOutputStream().use { output ->
-                input.copyTo(output)
+        try {
+            inputStream.use { input ->
+                targetFile.openOutputStream().use { output ->
+                    input.copyTo(output)
+                }
             }
+        } catch (e: Throwable) {
+            // A partial image would still be found as the cover
+            targetFile.delete()
+            throw e
         }
 
         DiskUtil.createNoMediaFile(directory, context)

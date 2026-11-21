@@ -249,11 +249,17 @@ class LocalSource(
     }
 
     private fun copyComicInfoFile(comicInfoFileStream: InputStream, folder: UniFile): UniFile? {
-        return folder.createFile(COMIC_INFO_FILE)?.apply {
-            openOutputStream().use { outputStream ->
+        val file = folder.createFile(COMIC_INFO_FILE) ?: return null
+        try {
+            file.openOutputStream().use { outputStream ->
                 comicInfoFileStream.use { it.copyTo(outputStream) }
             }
+        } catch (e: Throwable) {
+            // A partial file would be parsed instead of copied again
+            file.delete()
+            throw e
         }
+        return file
     }
 
     private fun parseComicInfo(stream: InputStream): ComicInfo {
