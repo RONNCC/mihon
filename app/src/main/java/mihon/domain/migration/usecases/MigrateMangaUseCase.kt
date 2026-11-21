@@ -107,7 +107,8 @@ class MigrateMangaUseCase(
             // Delete downloaded
             if (MigrationFlag.REMOVE_DOWNLOAD in flags && currentSource != null) {
                 // Not awaited, so a slow storage delete doesn't hold up the migration
-                scope.launch { downloadManager.deleteManga(current, currentSource) }
+                val currentChapters = getChaptersByMangaId.await(current.id)
+                scope.launch { downloadManager.deleteMangaDownloads(currentChapters, current, currentSource) }
             }
 
             // Update custom cover (recheck if custom cover exists)

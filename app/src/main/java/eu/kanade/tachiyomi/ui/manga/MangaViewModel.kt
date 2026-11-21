@@ -510,7 +510,8 @@ class MangaViewModel(
      */
     private fun deleteDownloads() {
         val state = successState ?: return
-        appScope.launch { downloadManager.deleteManga(state.manga, state.source) }
+        val chapters = state.chapters.map { it.chapter }
+        appScope.launch { downloadManager.deleteMangaDownloads(chapters, state.manga, state.source) }
     }
 
     /**
