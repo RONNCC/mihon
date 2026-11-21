@@ -4,9 +4,11 @@ import android.annotation.SuppressLint
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNames
 import kotlinx.serialization.protobuf.ProtoNumber
+import logcat.LogPriority
 import mihon.data.extension.model.NetworkExtensionStore.ContentWarning
 import mihon.data.extension.model.NetworkExtensionStore.ExtensionList
 import mihon.domain.extension.model.ExtensionStore
+import tachiyomi.core.common.util.system.logcat
 import eu.kanade.tachiyomi.extension.model.Extension as TachiyomiExtension
 import mihon.domain.extension.model.ContentWarning as DomainContentWarning
 
@@ -96,7 +98,12 @@ data class NetworkExtensionStore(
 fun ExtensionList.toAvailableExtensions(store: ExtensionStore): List<TachiyomiExtension.Available> {
     return extensions.mapNotNull { extension ->
         // One malformed entry shouldn't drop the whole store
-        val libVersion = extension.extensionLib.toDoubleOrNull() ?: return@mapNotNull null
+        val libVersion = extension.extensionLib.toDoubleOrNull() ?: run {
+            logcat(LogPriority.WARN) {
+                "Skipping '${extension.packageName}' with lib version '${extension.extensionLib}'"
+            }
+            return@mapNotNull null
+        }
         val lang = extension.sources.map { it.language }.toSet()
         TachiyomiExtension.Available(
             name = extension.name,

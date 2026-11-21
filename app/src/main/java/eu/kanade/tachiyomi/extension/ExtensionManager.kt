@@ -226,7 +226,10 @@ class ExtensionManager(
     }
 
     private fun setAvailableExtensions(listing: ExtensionListing) {
-        val extensions = listing.extensions
+        // Nothing is known about an unreachable store now, so its previous listings stay as they were
+        val unreachableStores = listing.unreachableStores.mapTo(HashSet()) { it.indexUrl }
+        val extensions = listing.extensions +
+            availableExtensionListFlow.value.filter { it.store.indexUrl in unreachableStores }
         enableAdditionalSubLanguages(extensions)
 
         unreachableSigningKeys = listing.unreachableStores.mapTo(HashSet()) { it.signingKey }
