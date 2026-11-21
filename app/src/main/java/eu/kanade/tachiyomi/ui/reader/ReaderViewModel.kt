@@ -936,9 +936,8 @@ class ReaderViewModel(
      * Saves the image of the selected page on the pictures directory and notifies the UI of the result.
      * There's also a notification to allow sharing the image somewhere else or deleting it.
      */
-    fun saveImage() {
-        val page = (state.value.dialog as? Dialog.PageActions)?.page
-        if (page?.status != Page.State.Ready) return
+    fun saveImage(page: ReaderPage) {
+        if (page.status != Page.State.Ready) return
         val manga = manga ?: return
 
         val notifier = SaveImageNotifier(context)

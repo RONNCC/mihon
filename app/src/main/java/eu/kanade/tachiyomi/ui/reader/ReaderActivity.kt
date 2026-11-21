@@ -77,6 +77,7 @@ import eu.kanade.presentation.reader.ReadingModeSelectDialog
 import eu.kanade.presentation.reader.appbars.ReaderAppBars
 import eu.kanade.presentation.reader.components.ChapterNavigatorType
 import eu.kanade.presentation.reader.settings.ReaderSettingsDialog
+import eu.kanade.presentation.util.rememberSaveImagePermissionRequester
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.data.notification.NotificationReceiver
 import eu.kanade.tachiyomi.data.notification.Notifications
@@ -280,8 +281,12 @@ class ReaderActivity : BaseActivity() {
                 )
             }
 
+            // Outside the dialog, which is gone by the time the permission prompt answers
+            var pendingSave by remember { mutableStateOf<ReaderPage?>(null) }
+            val saveImage = rememberSaveImagePermissionRequester { pendingSave?.let(viewModel::saveImage) }
+
             val onDismissRequest = viewModel::closeDialog
-            when (state.dialog) {
+            when (val dialog = state.dialog) {
                 is ReaderViewModel.Dialog.Settings -> {
                     ReaderSettingsDialog(
                         onDismissRequest = onDismissRequest,
@@ -317,7 +322,10 @@ class ReaderActivity : BaseActivity() {
                         onDismissRequest = onDismissRequest,
                         onSetAsCover = viewModel::setAsCover,
                         onShare = viewModel::shareImage,
-                        onSave = viewModel::saveImage,
+                        onSave = {
+                            pendingSave = dialog.page
+                            saveImage()
+                        },
                     )
                 }
                 null -> {}

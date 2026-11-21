@@ -802,6 +802,7 @@
     <string name="manga_cover">Cover</string>
     <string name="cover_saved">Cover saved</string>
     <string name="error_saving_cover">Error saving cover</string>
+    <string name="save_image_permission_required">Storage permission is required to save images</string>
     <string name="error_sharing_cover">Error sharing cover</string>
     <string name="confirm_delete_chapters">Are you sure you want to delete the selected chapters?</string>
     <string name="chapter_settings">Chapter settings</string>
