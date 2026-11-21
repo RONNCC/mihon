@@ -94,14 +94,16 @@ data class NetworkExtensionStore(
 }
 
 fun ExtensionList.toAvailableExtensions(store: ExtensionStore): List<TachiyomiExtension.Available> {
-    return extensions.map { extension ->
+    return extensions.mapNotNull { extension ->
+        // One malformed entry shouldn't drop the whole store
+        val libVersion = extension.extensionLib.toDoubleOrNull() ?: return@mapNotNull null
         val lang = extension.sources.map { it.language }.toSet()
         TachiyomiExtension.Available(
             name = extension.name,
             pkgName = extension.packageName,
             apkUrl = extension.resources.apkUrl,
             iconUrl = extension.resources.iconUrl,
-            libVersion = extension.extensionLib.toDouble(),
+            libVersion = libVersion,
             versionCode = extension.versionCode,
             versionName = extension.versionName,
             lang = if (lang.size == 1) lang.first() else "all",

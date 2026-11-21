@@ -26,13 +26,14 @@ data class NetworkLegacyExtension(
         val baseUrl: String,
     )
 
-    fun toAvailableExtension(store: ExtensionStore, storeBaseUrl: String): Extension.Available {
+    fun toAvailableExtension(store: ExtensionStore, storeBaseUrl: String): Extension.Available? {
+        val libVersion = version.substringBeforeLast('.').toDoubleOrNull() ?: return null
         return Extension.Available(
             name = name.substringAfter("Tachiyomi: "),
             pkgName = pkg,
             apkUrl = "$storeBaseUrl/apk/$apk",
             iconUrl = "$storeBaseUrl/icon/$pkg.png",
-            libVersion = version.substringBeforeLast('.').toDouble(),
+            libVersion = libVersion,
             versionCode = code,
             versionName = version,
             lang = lang,

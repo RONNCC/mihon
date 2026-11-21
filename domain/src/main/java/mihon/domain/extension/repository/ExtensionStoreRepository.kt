@@ -1,7 +1,7 @@
 package mihon.domain.extension.repository
 
-import eu.kanade.tachiyomi.extension.model.Extension
 import kotlinx.coroutines.flow.Flow
+import mihon.domain.extension.model.ExtensionListing
 import mihon.domain.extension.model.ExtensionStore
 
 interface ExtensionStoreRepository {
@@ -13,7 +13,10 @@ interface ExtensionStoreRepository {
 
     suspend fun refreshAll()
 
-    suspend fun fetchExtensions(): List<Extension.Available>
+    /**
+     * @throws java.io.IOException when there are stores but none of them could be reached.
+     */
+    suspend fun fetchExtensions(): ExtensionListing
 
     suspend fun getAll(): List<ExtensionStore>
 

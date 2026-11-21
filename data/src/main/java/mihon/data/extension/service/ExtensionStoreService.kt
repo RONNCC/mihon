@@ -106,7 +106,7 @@ class ExtensionStoreService(
                 val response = network.client.newCall(GET("$storeBaseUrl/index.min.json")).awaitSuccess()
                 response.body.source().use { source ->
                     json.decodeFromBufferedSource<List<NetworkLegacyExtension>>(source)
-                        .map { it.toAvailableExtension(store, storeBaseUrl) }
+                        .mapNotNull { it.toAvailableExtension(store, storeBaseUrl) }
                 }
             }
             Result.success(extensions)

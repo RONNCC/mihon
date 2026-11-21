@@ -36,6 +36,7 @@ import kotlinx.coroutines.withContext
 import logcat.LogPriority
 import mihon.core.metro.AppCoroutineScope
 import mihon.domain.extension.interactor.UpdateExtensionStores
+import mihon.domain.extension.model.ExtensionListing
 import mihon.domain.extension.model.ExtensionStore
 import mihon.domain.extension.repository.ExtensionStoreRepository
 import tachiyomi.core.common.util.system.logcat
@@ -70,6 +71,10 @@ class ExtensionManager(
 
     @Volatile
     private var stores = emptyList<ExtensionStore>()
+
+    // Extensions signed with one of these can't be judged by the listings, as their stores weren't reachable
+    @Volatile
+    private var unreachableSigningKeys = emptySet<String>()
 
     private val loadedExtensionMapFlow = MutableStateFlow(emptyMap<String, Extension.Loaded>())
     val loadedExtensionsFlow = loadedExtensionMapFlow.mapExtensionsWhenInitialized()
@@ -185,15 +190,15 @@ class ExtensionManager(
      * Finds the available extensions in the stores and updates [availableExtensionListFlow].
      */
     suspend fun findAvailableExtensions() {
-        val extensions: List<Extension.Available> = try {
-            fetchExtensions()
+        val listing = try {
+            extensionStoreRepository.fetchExtensions()
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e)
             withContext(Dispatchers.Main) { context.toast(MR.strings.extension_api_error) }
             return
         }
 
-        setAvailableExtensions(extensions)
+        setAvailableExtensions(listing)
     }
 
     /**
@@ -201,16 +206,16 @@ class ExtensionManager(
      * installed extensions that have an update. Stays silent when the stores can't be reached.
      */
     suspend fun checkForUpdates() {
-        val extensions = try {
+        val listing = try {
             updateExtensionStores()
-            fetchExtensions()
+            extensionStoreRepository.fetchExtensions()
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e)
             return
         }
 
         initialized.await()
-        setAvailableExtensions(extensions)
+        setAvailableExtensions(listing)
 
         val names = (loadedExtensionMapFlow.value.values + notLoadedExtensionMapFlow.value.values)
             .filter { it.hasUpdate }
@@ -220,13 +225,11 @@ class ExtensionManager(
         }
     }
 
-    private suspend fun fetchExtensions(): List<Extension.Available> {
-        return extensionStoreRepository.fetchExtensions()
-    }
-
-    private fun setAvailableExtensions(extensions: List<Extension.Available>) {
+    private fun setAvailableExtensions(listing: ExtensionListing) {
+        val extensions = listing.extensions
         enableAdditionalSubLanguages(extensions)
 
+        unreachableSigningKeys = listing.unreachableStores.mapTo(HashSet()) { it.signingKey }
         availableExtensionListFlow.value = extensions
         refreshStatuses()
         setupAvailableExtensionsSourcesDataMap(extensions)
@@ -380,9 +383,10 @@ class ExtensionManager(
             loadedExtensionMapFlow.update { current ->
                 current.mapValues { (_, extension) ->
                     val listing = extension.findListing(available)
+                    val isJudgeable = extension.signatures.none { it in unreachableSigningKeys }
                     extension.copy(
                         hasUpdate = extension.findUpdate(available) != null,
-                        isObsolete = listing == null,
+                        isObsolete = listing == null && isJudgeable,
                         store = if (stores.isEmpty()) extension.store else extension.pickStore(),
                     )
                 }
