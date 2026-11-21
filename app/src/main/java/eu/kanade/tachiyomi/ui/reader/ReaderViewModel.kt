@@ -300,6 +300,11 @@ class ReaderViewModel(
     private var incognitoMode: Boolean = false
     private val downloadAheadAmount = downloadPreferences.autoDownloadWhileReading.get()
 
+    /**
+     * The page to save once the storage permission prompt is answered. Kept here to survive a rotation meanwhile.
+     */
+    var pendingSavePage: ReaderPage? = null
+
     private var finished = false
 
     init {

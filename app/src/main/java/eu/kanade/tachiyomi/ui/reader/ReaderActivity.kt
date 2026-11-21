@@ -281,9 +281,9 @@ class ReaderActivity : BaseActivity() {
                 )
             }
 
-            // Outside the dialog, which is gone by the time the permission prompt answers
-            var pendingSave by remember { mutableStateOf<ReaderPage?>(null) }
-            val saveImage = rememberSaveImagePermissionRequester { pendingSave?.let(viewModel::saveImage) }
+            val saveImage = rememberSaveImagePermissionRequester {
+                viewModel.pendingSavePage?.let(viewModel::saveImage)
+            }
 
             val onDismissRequest = viewModel::closeDialog
             when (val dialog = state.dialog) {
@@ -323,7 +323,7 @@ class ReaderActivity : BaseActivity() {
                         onSetAsCover = viewModel::setAsCover,
                         onShare = viewModel::shareImage,
                         onSave = {
-                            pendingSave = dialog.page
+                            viewModel.pendingSavePage = dialog.page
                             saveImage()
                         },
                     )
