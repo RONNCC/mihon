@@ -39,16 +39,23 @@ class TrackChapter(
 
             tracks.mapNotNull { track ->
                 val service = trackerManager.get(track.trackerId)
-                if (service == null || !service.isLoggedIn || chapterNumber <= track.lastChapterRead) {
+                if (service == null || chapterNumber <= track.lastChapterRead) {
+                    delayedTrackingStore.remove(track.id)
                     return@mapNotNull null
                 }
+                if (!service.isLoggedIn) return@mapNotNull null
 
                 async {
                     runCatching {
                         try {
-                            val updatedTrack = service.refresh(track.toDbTrack())
+                            val refreshedTrack = service.refresh(track.toDbTrack())
                                 .toDomainTrack(idRequired = true)!!
-                                .copy(lastChapterRead = chapterNumber)
+                            // The remote may be ahead of the local copy, e.g. after reading on another device
+                            if (chapterNumber <= refreshedTrack.lastChapterRead) {
+                                delayedTrackingStore.remove(track.id)
+                                return@runCatching
+                            }
+                            val updatedTrack = refreshedTrack.copy(lastChapterRead = chapterNumber)
                             service.update(updatedTrack.toDbTrack(), true)
                             upsertTrack.await(updatedTrack)
                             delayedTrackingStore.remove(track.id)
