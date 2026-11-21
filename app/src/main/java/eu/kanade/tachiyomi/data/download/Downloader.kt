@@ -508,7 +508,7 @@ class Downloader(
             if (downloadPreferences.saveChaptersAsCBZ.get()) {
                 archiveChapter(mangaDir, chapterDirname, tmpDir)
             } else {
-                tmpDir.renameTo(chapterDirname)
+                check(tmpDir.renameTo(chapterDirname)) { "Could not rename the downloaded chapter to $chapterDirname" }
             }
             cache.addChapter(chapterDirname, mangaDir, download.manga)
 
@@ -589,7 +589,7 @@ class Downloader(
                         stream = file.openOutputStream(it.code == 206),
                     )
                     val extension = getImageExtension(it, file)
-                    file.renameTo("$filename.$extension")
+                    check(file.renameTo("$filename.$extension")) { "Could not rename downloaded page $filename" }
                 }
             } catch (e: HttpException) {
                 if (e.code == 416) {
@@ -630,7 +630,8 @@ class Downloader(
         } ?: return null
         chapterCache.removeImage(imageUrl)
         val extension = tmpFile.openInputStream().use { ImageUtil.findImageType(it) } ?: return tmpFile
-        tmpFile.renameTo("$filename.${extension.extension}")
+        val renamed = tmpFile.renameTo("$filename.${extension.extension}")
+        check(renamed) { "Could not rename cached page $filename" }
         return tmpFile
     }
 
@@ -704,7 +705,7 @@ class Downloader(
                 writer.write(file)
             }
         }
-        zip.renameTo("$dirname.cbz")
+        check(zip.renameTo("$dirname.cbz")) { "Could not rename the archive of $dirname" }
         tmpDir.delete()
     }
 
