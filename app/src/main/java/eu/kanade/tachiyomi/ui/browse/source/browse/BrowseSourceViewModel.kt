@@ -173,7 +173,7 @@ class BrowseSourceViewModel(
         }
     }
 
-    fun search(query: String? = null, filters: FilterList? = null) {
+    fun search(query: String? = null) {
         val input = state.value.listing as? Listing.Search
             ?: Listing.Search(query = null, filters = source?.getFilterList() ?: FilterList())
 
@@ -181,9 +181,25 @@ class BrowseSourceViewModel(
             it.copy(
                 listing = input.copy(
                     query = query ?: input.query,
-                    filters = filters ?: input.filters,
                 ),
                 toolbarQuery = query ?: input.query,
+            )
+        }
+    }
+
+    /**
+     * Applies [filters] using the current search field text as the query. Both the listing and the
+     * field are normalized, so a blank field means no query and filters only.
+     */
+    fun searchWithFilters(filters: FilterList) {
+        state.update {
+            val query = it.toolbarQuery?.takeIf(String::isNotBlank)
+            it.copy(
+                listing = Listing.Search(
+                    query = query,
+                    filters = filters,
+                ),
+                toolbarQuery = query,
             )
         }
     }

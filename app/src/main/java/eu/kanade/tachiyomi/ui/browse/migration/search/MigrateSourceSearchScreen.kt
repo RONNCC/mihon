@@ -130,7 +130,7 @@ fun MigrateSourceSearchScreen(
                 onDismissRequest = onDismissRequest,
                 filters = state.filters,
                 onReset = viewModel::resetFilters,
-                onFilter = { viewModel.search(filters = state.filters) },
+                onFilter = { viewModel.searchWithFilters(state.filters) },
                 onUpdate = viewModel::setFilters,
             )
         }
