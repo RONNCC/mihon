@@ -292,6 +292,17 @@ class LibraryUpdateWorker(private val context: Context, workerParams: WorkerPara
                                             consecutiveIoFailures = 0
 
                                             if (newChapters.isNotEmpty()) {
+                                                // Sources update concurrently, and getAndSet is a separate read and write
+                                                synchronized(libraryPreferences.newUpdatesCount) {
+                                                    libraryPreferences.newUpdatesCount.getAndSet {
+                                                        it + newChapters.size
+                                                    }
+                                                }
+
+                                                // Convert to the manga that contains new chapters. Recorded before
+                                                // the download is queued so that a stop in between still notifies
+                                                newUpdates.add(manga to newChapters.toTypedArray())
+
                                                 val chaptersToDownload = filterChaptersForDownload.await(
                                                     manga,
                                                     newChapters,
@@ -301,18 +312,9 @@ class LibraryUpdateWorker(private val context: Context, workerParams: WorkerPara
                                                     downloadChapters(manga, chaptersToDownload)
                                                     hasDownloads.store(true)
                                                 }
-
-                                                // Sources update concurrently, and getAndSet is a separate read and write
-                                                synchronized(libraryPreferences.newUpdatesCount) {
-                                                    libraryPreferences.newUpdatesCount.getAndSet {
-                                                        it + newChapters.size
-                                                    }
-                                                }
-
-                                                // Convert to the manga that contains new chapters
-                                                newUpdates.add(manga to newChapters.toTypedArray())
                                             }
                                         } catch (e: Throwable) {
+                                            if (e is CancellationException) throw e
                                             if (e is IOException) {
                                                 if (++consecutiveIoFailures >= MAX_CONSECUTIVE_IO_FAILURES) {
                                                     sourceUnreachable = e
