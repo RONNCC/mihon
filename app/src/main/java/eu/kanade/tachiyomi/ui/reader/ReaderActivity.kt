@@ -381,6 +381,12 @@ class ReaderActivity : BaseActivity() {
                     ReaderViewModel.Event.PageChanged -> {
                         displayRefreshHost.flash()
                     }
+                    ReaderViewModel.Event.AdjacentChapterLoaded -> {
+                        moveToPageIndex(0)
+                    }
+                    is ReaderViewModel.Event.AdjacentChapterFailed -> {
+                        toast(event.error.message)
+                    }
                     is ReaderViewModel.Event.SetOrientation -> {
                         setOrientation(event.orientation)
                     }
@@ -522,11 +528,11 @@ class ReaderActivity : BaseActivity() {
             Key.DirectionUp, Key.PageUp -> Action.BACKWARD
             Key.Menu -> Action.MENU
             Key.N -> {
-                if (isUp) loadNextChapter()
+                if (isUp) viewModel.loadNextChapter()
                 return true
             }
             Key.P -> {
-                if (isUp) loadPreviousChapter()
+                if (isUp) viewModel.loadPreviousChapter()
                 return true
             }
             else -> return false
@@ -595,9 +601,9 @@ class ReaderActivity : BaseActivity() {
                 }
             },
             verticalNavigatorHeight = verticalNavigatorHeight / 100f,
-            onNextChapter = ::loadNextChapter,
+            onNextChapter = viewModel::loadNextChapter,
             enabledNext = state.viewerChapters?.nextChapter != null,
-            onPreviousChapter = ::loadPreviousChapter,
+            onPreviousChapter = viewModel::loadPreviousChapter,
             enabledPrevious = state.viewerChapters?.prevChapter != null,
             currentPage = state.currentPage,
             totalPages = state.totalPages,
@@ -739,28 +745,6 @@ class ReaderActivity : BaseActivity() {
         val currentChapter = viewModel.state.value.currentChapter ?: return
         val page = currentChapter.pages?.getOrNull(index) ?: return
         viewer.moveToPage(page)
-    }
-
-    /**
-     * Tells the presenter to load the next chapter and mark it as active. The progress dialog
-     * should be automatically shown.
-     */
-    private fun loadNextChapter() {
-        lifecycleScope.launch {
-            viewModel.loadNextChapter()
-            moveToPageIndex(0)
-        }
-    }
-
-    /**
-     * Tells the presenter to load the previous chapter and mark it as active. The progress dialog
-     * should be automatically shown.
-     */
-    private fun loadPreviousChapter() {
-        lifecycleScope.launch {
-            viewModel.loadPreviousChapter()
-            moveToPageIndex(0)
-        }
     }
 
     /**
