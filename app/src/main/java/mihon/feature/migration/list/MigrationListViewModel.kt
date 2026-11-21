@@ -279,8 +279,10 @@ class MigrationListViewModel(
                                 null
                             }
                         }
-                        if (target != null) {
-                            migrateManga(current = manga.manga, target = target, replace = replace)
+                        if (target != null &&
+                            !migrateManga(current = manga.manga, target = target, replace = replace)
+                        ) {
+                            logcat(LogPriority.WARN) { "Could not migrate ${manga.manga.title}" }
                         }
                     } catch (e: Exception) {
                         if (e is CancellationException) throw e
@@ -308,11 +310,14 @@ class MigrationListViewModel(
         navigateBackChannel.send(Unit)
     }
 
-    fun migrateNow(mangaId: Long, replace: Boolean) {
+    fun migrateNow(mangaId: Long, replace: Boolean, onFailure: () -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             val manga = items.find { it.manga.id == mangaId } ?: return@launch
             val target = (manga.searchResult.value as? SearchResult.Success)?.manga ?: return@launch
-            migrateManga(current = manga.manga, target = target, replace = replace)
+            if (!migrateManga(current = manga.manga, target = target, replace = replace)) {
+                withContext(Dispatchers.Main) { onFailure() }
+                return@launch
+            }
 
             removeManga(mangaId)
         }

@@ -11,9 +11,11 @@ import eu.kanade.tachiyomi.data.track.TrackerManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import logcat.LogPriority
 import mihon.core.metro.AppCoroutineScope
 import mihon.domain.migration.models.MigrationFlag
 import mihon.domain.source.interactor.UpdateMangaFromRemote
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.interactor.SetMangaCategories
 import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
@@ -45,12 +47,15 @@ class MigrateMangaUseCase(
 ) {
     private val enhancedServices by lazy { trackerManager.trackers.filterIsInstance<EnhancedTracker>() }
 
-    suspend operator fun invoke(current: Manga, target: Manga, replace: Boolean) {
-        val targetSource = sourceManager.get(target.source) ?: return
+    /**
+     * @return whether the migration completed. When not, the current entry is left as it was and its downloads are kept.
+     */
+    suspend operator fun invoke(current: Manga, target: Manga, replace: Boolean): Boolean {
+        val targetSource = sourceManager.get(target.source) ?: return false
         val currentSource = sourceManager.get(current.source)
         val flags = sourcePreferences.migrationFlags.get()
 
-        try {
+        return try {
             updateMangaFromRemote(target, fetchChapters = true).getOrThrow()
 
             // Update chapters read, bookmark and dateFetch
@@ -104,13 +109,6 @@ class MigrateMangaUseCase(
                 .takeIf { it.isNotEmpty() }
                 ?.let { upsertTrack.awaitAll(it) }
 
-            // Delete downloaded
-            if (MigrationFlag.REMOVE_DOWNLOAD in flags && currentSource != null) {
-                // Not awaited, so a slow storage delete doesn't hold up the migration
-                val currentChapters = getChaptersByMangaId.await(current.id)
-                scope.launch { downloadManager.deleteMangaDownloads(currentChapters, current, currentSource) }
-            }
-
             // Update custom cover (recheck if custom cover exists)
             if (MigrationFlag.CUSTOM_COVER in flags && current.hasCustomCover(coverCache)) {
                 coverCache.getCustomCoverFile(current.id).inputStream().use {
@@ -129,11 +127,22 @@ class MigrateMangaUseCase(
                 if (MigrationFlag.NOTES in flags) notes = current.notes
             }
 
-            updateManga.awaitAll(listOfNotNull(currentMangaUpdate, targetMangaUpdate))
+            if (!updateManga.awaitAll(listOfNotNull(currentMangaUpdate, targetMangaUpdate))) return false
+
+            // Delete downloaded, only once the migration is committed
+            if (MigrationFlag.REMOVE_DOWNLOAD in flags && currentSource != null) {
+                val currentChapters = getChaptersByMangaId.await(current.id)
+                // Not awaited, so a slow storage delete doesn't hold up the migration
+                scope.launch { downloadManager.deleteMangaDownloads(currentChapters, current, currentSource) }
+            }
+
+            true
         } catch (e: Throwable) {
             if (e is CancellationException) {
                 throw e
             }
+            logcat(LogPriority.ERROR, e) { "Could not migrate ${current.title}" }
+            false
         }
     }
 }
