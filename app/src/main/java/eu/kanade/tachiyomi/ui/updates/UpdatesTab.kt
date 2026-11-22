@@ -97,6 +97,11 @@ fun UpdatesTab() {
         )
     }
 
+    // A tab switch from selection mode would otherwise leave the navigation hidden
+    DisposableEffect(Unit) {
+        onDispose { resultBus.sendResult(ShowBottomNavEvent(true)) }
+    }
+
     LaunchedEffect(state.isLoading) {
         if (!state.isLoading) {
             (context as? MainActivity)?.ready = true
