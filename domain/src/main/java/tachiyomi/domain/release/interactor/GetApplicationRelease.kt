@@ -30,28 +30,30 @@ class GetApplicationRelease(
         versionName: String,
         versionTag: String,
     ): Boolean {
-        // Removes prefixes like "r" or "v"
-        val newVersion = versionTag.replace("[^\\d.]".toRegex(), "")
         return if (isNightly) {
             // Nightly builds: based on releases in "mihonapp/mihon-preview" repo
             // tagged as something like "r1234"
-            newVersion.toInt() > commitCount
+            versionTag.replace("[^\\d.]".toRegex(), "").toInt() > commitCount
         } else {
             // Release builds: based on releases in "mihonapp/mihon" repo
             // tagged as something like "v0.1.2"
-            val oldVersion = versionName.replace("[^\\d.]".toRegex(), "")
-
-            val newSemVer = newVersion.split(".").map { it.toInt() }
-            val oldSemVer = oldVersion.split(".").map { it.toInt() }
-
-            oldSemVer.mapIndexed { index, i ->
-                if (newSemVer[index] > i) {
-                    return true
-                }
-            }
-
-            false
+            compareVersions(parseVersion(versionTag), parseVersion(versionName)) > 0
         }
+    }
+
+    /** Leading numeric components of a version like "v0.21.3" or "0.21.3-1234", ignoring any suffix. */
+    private fun parseVersion(version: String): List<Int> {
+        return VERSION_REGEX.find(version)?.value.orEmpty()
+            .split(".")
+            .map { it.toIntOrNull() ?: 0 }
+    }
+
+    private fun compareVersions(a: List<Int>, b: List<Int>): Int {
+        for (i in 0 until maxOf(a.size, b.size)) {
+            val diff = a.getOrElse(i) { 0 }.compareTo(b.getOrElse(i) { 0 })
+            if (diff != 0) return diff
+        }
+        return 0
     }
 
     data class Arguments(
@@ -67,5 +69,9 @@ class GetApplicationRelease(
         data class NewUpdate(val release: Release) : Result
         data object NoNewUpdate : Result
         data object OsTooOld : Result
+    }
+
+    private companion object {
+        val VERSION_REGEX = "\\d+(\\.\\d+)*".toRegex()
     }
 }
