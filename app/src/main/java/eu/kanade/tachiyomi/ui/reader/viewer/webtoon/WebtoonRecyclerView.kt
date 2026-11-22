@@ -70,6 +70,11 @@ class WebtoonRecyclerView @JvmOverloads constructor(
         get() = (Resources.getSystem().displayMetrics.widthPixels * (sidePaddingPercent / 100f)).toInt()
 
     var doubleTapZoom = true
+        set(value) {
+            field = value
+            // Without a double tap to wait for, a second quick tap would be taken as a double tap that does nothing
+            detector.setOnDoubleTapListener(if (value) listener else null)
+        }
 
     var tapListener: ((MotionEvent) -> Unit)? = null
     var longTapListener: ((MotionEvent) -> Boolean)? = null
@@ -258,12 +263,22 @@ class WebtoonRecyclerView @JvmOverloads constructor(
     inner class GestureListener : GestureDetectorWithLongTap.Listener() {
 
         override fun onSingleTapConfirmed(ev: MotionEvent): Boolean {
+            onTap(ev)
+            return false
+        }
+
+        override fun onSingleTapUp(ev: MotionEvent): Boolean {
+            // Without a double tap listener no tap is ever confirmed
+            if (!doubleTapZoom) onTap(ev)
+            return false
+        }
+
+        private fun onTap(ev: MotionEvent) {
             // A tap is confirmed after a delay, by when the reader can be gone, and scrolling a detached list
             // lays out pages that can't compose
             if (!tapDuringManualScroll && isAttachedToWindow) {
                 tapListener?.invoke(ev)
             }
-            return false
         }
 
         override fun onDoubleTap(ev: MotionEvent): Boolean {
