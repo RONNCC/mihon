@@ -62,6 +62,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Fix links opened from other apps or sites logging out of a tracker or logging in to someone else's tracker account
 - Fix extension stores being added over plain HTTP and adopting a changed signing key from their index without asking
 - Fix the app freezing and closing when extension installs take longer than 3 minutes on Android 14 and newer
+- Fix verbose network logs showing cookies and the Kavita API key
 
 ## [v0.21.3] - 2026-10-26
 ### Added
