@@ -28,8 +28,17 @@ interface ThemingDelegate {
 class ThemingDelegateImpl : ThemingDelegate {
     override fun applyAppTheme(activity: AppCompatActivity) {
         val uiPreferences = activity.appGraph.uiPreferences
-        ThemingDelegate.getThemeResIds(uiPreferences.appTheme.get(), uiPreferences.themeDarkAmoled.get())
-            .forEach(activity::setTheme)
+        val applied = uiPreferences.appTheme.get() to uiPreferences.themeDarkAmoled.get()
+        ThemingDelegate.getThemeResIds(applied.first, applied.second).forEach(activity::setTheme)
+
+        // The theme is only read on creation, so a change made elsewhere, like by a restore, needs a recreation
+        activity.lifecycleScope.launch {
+            activity.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                combine(uiPreferences.appTheme.changes(), uiPreferences.themeDarkAmoled.changes(), ::Pair)
+                    .first { it != applied }
+                ActivityCompat.recreate(activity)
+            }
+        }
     }
 }
 
