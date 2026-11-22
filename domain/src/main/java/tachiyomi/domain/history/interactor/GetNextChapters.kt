@@ -48,11 +48,8 @@ class GetNextChapters(
         // The "next chapter" is either:
         // - The current chapter if it isn't completely read
         // - The chapters after the current chapter if the current one is completely read
-        val fromChapter = chapters.getOrNull(currChapterIndex)
-        return if (fromChapter != null && !fromChapter.read) {
-            nextChapters
-        } else {
-            nextChapters.drop(1)
-        }
+        // A chapter the scanlator filter hides isn't in the list, so there is none to drop
+        val fromChapter = chapters.getOrNull(currChapterIndex) ?: return nextChapters
+        return if (!fromChapter.read) nextChapters else nextChapters.drop(1)
     }
 }
