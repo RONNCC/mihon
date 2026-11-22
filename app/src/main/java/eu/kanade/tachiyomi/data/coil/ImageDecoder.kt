@@ -14,6 +14,8 @@ import coil3.decode.Decoder
 import coil3.decode.ImageSource
 import coil3.fetch.SourceFetchResult
 import coil3.request.Options
+import coil3.request.maxBitmapSize
+import coil3.size.pxOrElse
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import okio.BufferedSource
@@ -79,11 +81,15 @@ class ImageDecoder(private val resources: ImageSource, private val options: Opti
                 }
 
                 // Shrunk while decoding. Sizes round up, so may be a pixel over BitmapFactory's.
+                // Capped like Coil's own decoder does, as an original size cover can be too large to draw
+                val maxSize = options.maxBitmapSize
                 val sampleSize = DecodeUtils.calculateInSampleSize(
                     srcWidth = dec.width,
                     srcHeight = dec.height,
-                    dstWidth = options.size.widthPx(options.scale) { dec.width },
-                    dstHeight = options.size.heightPx(options.scale) { dec.height },
+                    dstWidth = options.size.widthPx(options.scale) { dec.width }
+                        .coerceAtMost(maxSize.width.pxOrElse { Int.MAX_VALUE }),
+                    dstHeight = options.size.heightPx(options.scale) { dec.height }
+                        .coerceAtMost(maxSize.height.pxOrElse { Int.MAX_VALUE }),
                     scale = options.scale,
                 )
                 DecodeResult(
