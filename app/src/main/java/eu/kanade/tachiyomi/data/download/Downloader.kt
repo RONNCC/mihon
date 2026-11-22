@@ -145,6 +145,13 @@ class Downloader(
     suspend fun suspendDownloads() = lock.withLock { pauseLocked() }
 
     /**
+     * Continues the downloads that [suspendDownloads] halted, unless the user paused them meanwhile.
+     */
+    suspend fun resume() {
+        lock.withLock { if (!isPaused) startLocked() }
+    }
+
+    /**
      * Stops the downloader.
      */
     suspend fun stop(reason: String? = null) = lock.withLock { stopLocked(reason) }
@@ -848,14 +855,16 @@ class Downloader(
         // Leaves the running downloads alone when none of them is affected
         if (queueState.value.none(predicate)) return
 
-        val isWorking = queueState.value.any { predicate(it) && it.status == Download.State.DOWNLOADING }
+        val isWorking = queueState.value.any {
+            predicate(it) && (it.status == Download.State.DOWNLOADING || it.pages != null)
+        }
         var canceledJob: Job? = null
         editQueue {
             canceledJob = downloaderJob
             removeFromQueueIf(predicate)
         }
         // A canceled job can still be moving its chapter into place, which would bring back what the caller
-        // deletes next. Only the downloads being worked on can be in that state.
+        // deletes next. That is a chapter with a page list, even when a pause or stop already reset its status.
         if (isWorking) canceledJob?.join()
     }
 
