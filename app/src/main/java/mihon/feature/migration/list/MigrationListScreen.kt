@@ -41,6 +41,8 @@ fun MigrationListScreen(
         )
     }
 
+    val onMigrationFailure: () -> Unit = { context.toast(MR.strings.migration_failed) }
+
     LaunchedEffect(viewModel) {
         viewModel.navigateBackEvent.collect {
             navigator.pop()
@@ -57,8 +59,8 @@ fun MigrationListScreen(
             navigator.push(MigrateSearchRoute(migrationItem.manga.id))
         },
         onSkip = { viewModel.removeManga(it) },
-        onMigrate = { viewModel.migrateNow(mangaId = it, replace = true) },
-        onCopy = { viewModel.migrateNow(mangaId = it, replace = false) },
+        onMigrate = { viewModel.migrateNow(mangaId = it, replace = true, onFailure = onMigrationFailure) },
+        onCopy = { viewModel.migrateNow(mangaId = it, replace = false, onFailure = onMigrationFailure) },
         openMigrationDialog = viewModel::showMigrateDialog,
     )
 
@@ -71,9 +73,9 @@ fun MigrationListScreen(
                 skippedCount = dialog.skippedCount,
                 onMigrate = {
                     if (dialog.copy) {
-                        viewModel.copyMangas()
+                        viewModel.copyMangas(onMigrationFailure)
                     } else {
-                        viewModel.migrateMangas()
+                        viewModel.migrateMangas(onMigrationFailure)
                     }
                 },
             )

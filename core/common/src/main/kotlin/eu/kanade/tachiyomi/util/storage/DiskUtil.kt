@@ -1,10 +1,12 @@
 package eu.kanade.tachiyomi.util.storage
 
+import android.content.ContentResolver
 import android.content.Context
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Environment
 import android.os.StatFs
+import android.provider.DocumentsContract
 import androidx.core.content.ContextCompat
 import com.hippo.unifile.UniFile
 import eu.kanade.tachiyomi.util.lang.Hash
@@ -73,15 +75,27 @@ object DiskUtil {
     }
 
     /**
-     * Gets the available space for the disk that a file path points to, in bytes.
+     * Gets the available space for the disk that a file points to, in bytes, or -1 if it can't be told.
      */
     fun getAvailableStorageSpace(f: UniFile): Long {
         return try {
-            val stat = StatFs(f.uri.path)
+            val stat = StatFs(f.getStatPath())
             stat.availableBlocksLong * stat.blockSizeLong
         } catch (_: Exception) {
             -1L
         }
+    }
+
+    /**
+     * The path to read the free space from. A document of the external storage provider is mapped to the mount point
+     * of its volume, as its URI path doesn't exist on the file system.
+     */
+    private fun UniFile.getStatPath(): String? {
+        if (uri.scheme != ContentResolver.SCHEME_CONTENT) return uri.path
+        if (uri.authority != EXTERNAL_STORAGE_AUTHORITY) return null
+
+        val volume = DocumentsContract.getTreeDocumentId(uri).substringBefore(':')
+        return if (volume == "primary") Environment.getExternalStorageDirectory().path else "/storage/$volume"
     }
 
     /**
@@ -199,6 +213,8 @@ object DiskUtil {
     }
 
     const val NOMEDIA_FILE = ".nomedia"
+
+    private const val EXTERNAL_STORAGE_AUTHORITY = "com.android.externalstorage.documents"
 
     // Safe theoretical max filename size is 255 bytes and 1 char = 2-4 bytes (UTF-8).
     // To allow for writing to ext4 through a FUSE layer in the future, also subtract 15

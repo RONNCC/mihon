@@ -273,40 +273,68 @@ class DownloadManager(
                 return@withContext
             }
 
-            downloader.dequeue(filteredChapters)
+            deleteChapterDirs(filteredChapters, manga, source)
+        }
+    }
 
-            val (mangaDir, chapterDirs) = provider.findChapterDirs(filteredChapters, manga, source)
-            chapterDirs.forEach { it.delete() }
-            cache.removeChapters(filteredChapters, manga)
-
-            // Delete manga directory if empty
-            if (mangaDir?.listFiles()?.isEmpty() == true) {
-                deleteManga(manga, source, removeQueued = false)
+    /**
+     * Deletes the downloads of a manga regardless of the removal settings, and its queued ones.
+     *
+     * A manga directory that no other manga uses is deleted whole, with what no chapter accounts for. One shared with
+     * another manga of the same title in a source of the same name only loses the directories named after [chapters],
+     * so a chapter of the other manga that has the same name is lost as well.
+     *
+     * @param chapters all the chapters of the manga.
+     * @param manga the manga to delete the downloads of.
+     * @param source the source of the manga.
+     */
+    suspend fun deleteMangaDownloads(chapters: List<Chapter>, manga: Manga, source: Source) {
+        withContext(Dispatchers.IO) {
+            downloader.removeFromQueue(manga)
+            if (isMangaDirShared(manga, source)) {
+                deleteChapterDirs(chapters, manga, source)
+            } else {
+                deleteMangaDir(manga, source)
             }
         }
     }
 
     /**
-     * Deletes the directory of a downloaded manga.
-     *
-     * @param manga the manga to delete.
-     * @param source the source of the manga.
-     * @param removeQueued whether to also remove queued downloads.
+     * Whether another manga is downloaded in the directory of [manga]. When the manga can't be told, it is.
      */
-    suspend fun deleteManga(manga: Manga, source: Source, removeQueued: Boolean = true) {
-        withContext(Dispatchers.IO) {
-            if (removeQueued) {
-                downloader.removeFromQueue(manga)
-            }
-            provider.findMangaDir(manga.title, source)?.delete()
-            cache.removeManga(manga)
+    private suspend fun isMangaDirShared(manga: Manga, source: Source): Boolean {
+        val sameTitle = getManga.awaitByTitle(manga.title) ?: return true
+        val sourceDirName = provider.getSourceDirName(source)
+        val mangaDirName = provider.getMangaDirName(manga.title)
+        return sameTitle.any {
+            it.id != manga.id &&
+                provider.getMangaDirName(it.title) == mangaDirName &&
+                provider.getSourceDirName(sourceManager.getOrStub(it.source)) == sourceDirName
+        }
+    }
 
-            // Delete source directory if empty
-            val sourceDir = provider.findSourceDir(source)
-            if (sourceDir?.listFiles()?.isEmpty() == true) {
-                sourceDir.delete()
-                cache.removeSource(source)
-            }
+    private suspend fun deleteChapterDirs(chapters: List<Chapter>, manga: Manga, source: Source) {
+        downloader.dequeue(chapters)
+
+        val (mangaDir, chapterDirs) = provider.findChapterDirs(chapters, manga, source)
+        chapterDirs.forEach { it.delete() }
+        cache.removeChapters(chapters, manga)
+
+        // Delete manga directory if empty
+        if (mangaDir?.listFiles()?.isEmpty() == true) {
+            deleteMangaDir(manga, source)
+        }
+    }
+
+    private suspend fun deleteMangaDir(manga: Manga, source: Source) {
+        provider.findMangaDir(manga.title, source)?.delete()
+        cache.removeManga(manga)
+
+        // Delete source directory if empty
+        val sourceDir = provider.findSourceDir(source)
+        if (sourceDir?.listFiles()?.isEmpty() == true) {
+            sourceDir.delete()
+            cache.removeSource(source)
         }
     }
 

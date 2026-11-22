@@ -578,7 +578,8 @@ class LibraryViewModel(
 
             if (deleteChapters) {
                 mangas.forEach { manga ->
-                    downloadManager.deleteManga(manga, sourceManager.getOrStub(manga.source))
+                    val chapters = getChaptersByMangaId.await(manga.id)
+                    downloadManager.deleteMangaDownloads(chapters, manga, sourceManager.getOrStub(manga.source))
                 }
             }
         }

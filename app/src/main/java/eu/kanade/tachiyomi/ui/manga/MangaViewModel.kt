@@ -88,6 +88,7 @@ import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.category.interactor.GetCategories
 import tachiyomi.domain.category.interactor.SetMangaCategories
 import tachiyomi.domain.category.model.Category
+import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.chapter.interactor.SetMangaDefaultChapterFlags
 import tachiyomi.domain.chapter.interactor.UpdateChapter
 import tachiyomi.domain.chapter.model.Chapter
@@ -126,6 +127,7 @@ class MangaViewModel(
     private val downloadManager: DownloadManager,
     private val downloadCache: DownloadCache,
     private val getMangaAndChapters: GetMangaWithChapters,
+    private val getChaptersByMangaId: GetChaptersByMangaId,
     private val getDuplicateLibraryManga: GetDuplicateLibraryManga,
     private val getAvailableScanlators: GetAvailableScanlators,
     private val getExcludedScanlators: GetExcludedScanlators,
@@ -510,7 +512,11 @@ class MangaViewModel(
      */
     private fun deleteDownloads() {
         val state = successState ?: return
-        appScope.launch { downloadManager.deleteManga(state.manga, state.source) }
+        appScope.launch {
+            // The state only holds the chapters of the scanlators that aren't excluded
+            val chapters = getChaptersByMangaId.await(state.manga.id)
+            downloadManager.deleteMangaDownloads(chapters, state.manga, state.source)
+        }
     }
 
     /**

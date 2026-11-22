@@ -21,6 +21,15 @@ class GetManga(
         }
     }
 
+    suspend fun awaitByTitle(title: String): List<Manga>? {
+        return try {
+            mangaRepository.getMangaByTitle(title)
+        } catch (e: Exception) {
+            logcat(LogPriority.ERROR, e)
+            null
+        }
+    }
+
     fun subscribe(id: Long): Flow<Manga> {
         return mangaRepository.getMangaByIdAsFlow(id)
     }
