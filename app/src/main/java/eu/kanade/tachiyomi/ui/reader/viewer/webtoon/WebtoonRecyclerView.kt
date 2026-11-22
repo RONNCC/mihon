@@ -268,8 +268,15 @@ class WebtoonRecyclerView @JvmOverloads constructor(
         }
 
         override fun onSingleTapUp(ev: MotionEvent): Boolean {
-            // Without a double tap listener no tap is ever confirmed
-            if (!doubleTapZoom) onTap(ev)
+            // Without a double tap listener no tap is ever confirmed. Handled after the list sees the up, which
+            // would stop a scroll the tap starts.
+            if (!doubleTapZoom) {
+                val tap = MotionEvent.obtain(ev)
+                post {
+                    onTap(tap)
+                    tap.recycle()
+                }
+            }
             return false
         }
 
