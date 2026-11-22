@@ -256,18 +256,20 @@ class MigrationListViewModel(
         }
     }
 
-    fun migrateMangas() {
-        migrateMangas(replace = true)
+    fun migrateMangas(onFailure: () -> Unit) {
+        migrateMangas(replace = true, onFailure)
     }
 
-    fun copyMangas() {
-        migrateMangas(replace = false)
+    fun copyMangas(onFailure: () -> Unit) {
+        migrateMangas(replace = false, onFailure)
     }
 
-    private fun migrateMangas(replace: Boolean) {
+    private fun migrateMangas(replace: Boolean, onFailure: () -> Unit) {
         migrateJob = viewModelScope.launch(Dispatchers.IO) {
             state.update { it.copy(dialog = Dialog.Progress(0f)) }
             val items = items
+            var failed = false
+            val migrated = mutableListOf<MigratingManga>()
             try {
                 items.forEachIndexed { index, manga ->
                     try {
@@ -279,13 +281,16 @@ class MigrationListViewModel(
                                 null
                             }
                         }
-                        if (target != null &&
-                            !migrateManga(current = manga.manga, target = target, replace = replace)
-                        ) {
-                            logcat(LogPriority.WARN) { "Could not migrate ${manga.manga.title}" }
+                        if (target != null) {
+                            if (migrateManga(current = manga.manga, target = target, replace = replace)) {
+                                migrated += manga
+                            } else {
+                                failed = true
+                            }
                         }
                     } catch (e: Exception) {
                         if (e is CancellationException) throw e
+                        failed = true
                         logcat(LogPriority.WARN, throwable = e)
                     }
                     state.update {
@@ -293,7 +298,17 @@ class MigrationListViewModel(
                     }
                 }
 
-                navigateBack()
+                if (failed) {
+                    // Keep the entries that failed, to try them again
+                    migrated.forEach {
+                        removeManga(it)
+                        it.migrationScope.cancel()
+                    }
+                    updateMigrationProgress()
+                    withContext(Dispatchers.Main) { onFailure() }
+                } else {
+                    navigateBack()
+                }
             } finally {
                 state.update { it.copy(dialog = null) }
                 migrateJob = null

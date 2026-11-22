@@ -73,9 +73,9 @@ fun MigrationListScreen(
                 skippedCount = dialog.skippedCount,
                 onMigrate = {
                     if (dialog.copy) {
-                        viewModel.copyMangas()
+                        viewModel.copyMangas(onMigrationFailure)
                     } else {
-                        viewModel.migrateMangas()
+                        viewModel.migrateMangas(onMigrationFailure)
                     }
                 },
             )
