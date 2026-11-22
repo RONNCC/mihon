@@ -10,12 +10,14 @@ import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import android.widget.Toast
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -46,6 +48,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
@@ -207,6 +211,16 @@ class ReaderActivity : BaseActivity() {
             }
 
             LaunchedEffect(brightness) { setWindowBrightness(brightness) }
+
+            val isDarkTheme = isSystemInDarkTheme()
+            LaunchedEffect(state.menuVisible, isDarkTheme, backgroundColor) {
+                val style = if (systemBarsHaveDarkIcons(state.menuVisible, isDarkTheme, backgroundColor)) {
+                    SystemBarStyle.light(Color.Transparent.toArgb(), Color.Black.toArgb())
+                } else {
+                    SystemBarStyle.dark(Color.Transparent.toArgb())
+                }
+                enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+            }
 
             val forceNavigationOverlay = remember { settingsViewModel.takeNavigationOverlayForNewUser() }
             LaunchedEffect(navigation) {
@@ -902,3 +916,10 @@ private fun viewerColorFilter(grayscale: Boolean, invertedColors: Boolean): Colo
  * cutout is always avoided.
  */
 internal fun avoidsDisplayCutout(fullscreen: Boolean, drawUnderCutout: Boolean) = !fullscreen || !drawUnderCutout
+
+/**
+ * Whether the system bars need dark icons for what they are drawn over: the reader's menu bars, in the app's theme,
+ * while they show, else the reader's background.
+ */
+internal fun systemBarsHaveDarkIcons(menuVisible: Boolean, isDarkTheme: Boolean, background: Color) =
+    if (menuVisible) !isDarkTheme else background.luminance() > 0.5f
