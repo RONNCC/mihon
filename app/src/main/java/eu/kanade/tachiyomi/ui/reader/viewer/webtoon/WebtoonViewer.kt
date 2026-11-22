@@ -201,6 +201,8 @@ class WebtoonViewer(val activity: ReaderActivity, val isContinuous: Boolean = tr
     override fun destroy() {
         super.destroy()
         scope.cancel()
+        // Recycles the holders, whose pages would otherwise keep them loading and holding their images
+        recycler.adapter = null
     }
 
     /**
