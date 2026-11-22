@@ -63,14 +63,17 @@ class BackupCreator(
 
     suspend fun backup(uri: Uri, options: BackupOptions): String {
         var file: UniFile? = null
+        var created = false
         try {
             val dir = UniFile.fromUri(context, uri)
             // Auto backups go in a new file of the directory
-            file = if (isAutoBackup) dir?.createFile(getFilename()) else dir
+            val target = if (isAutoBackup) dir?.createFile(getFilename()) else dir
 
-            if (file == null || !file.isFile) {
+            // Some providers don't report a file they just created as one, so only a directory is turned down
+            if (target == null || target.isDirectory) {
                 throw IllegalStateException(context.stringResource(MR.strings.create_backup_file_error))
             }
+            file = target
 
             val nonFavoriteManga = if (options.readEntries) mangaRepository.getReadMangaNotInLibrary() else emptyList()
             val backupManga = backupMangas(getFavorites.await() + nonFavoriteManga, options)
@@ -114,11 +117,14 @@ class BackupCreator(
                 backupPreferences.lastAutoBackupTimestamp.set(Clock.System.now().toEpochMilliseconds())
             }
 
+            created = true
             return fileUri.toString()
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e)
-            file?.delete()
             throw e
+        } finally {
+            // Also for an Error such as running out of memory, which leaves a partial or empty file behind
+            if (!created) file?.delete()
         }
     }
 
