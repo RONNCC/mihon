@@ -39,8 +39,10 @@ object ImageUtil {
     fun isImage(name: String?, openStream: (() -> InputStream)? = null): Boolean {
         if (name == null) return false
 
-        val extension = name.substringAfterLast('.')
-        return ImageType.entries.any { it.extension == extension } || openStream?.let { findImageType(it) } != null
+        val extension = name.substringAfterLast('.').lowercase()
+        return extension == "jpeg" ||
+            ImageType.entries.any { it.extension == extension } ||
+            openStream?.let { findImageType(it) } != null
     }
 
     fun findImageType(openStream: () -> InputStream): ImageType? {
