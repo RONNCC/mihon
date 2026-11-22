@@ -89,6 +89,11 @@ getMangaTitles:
 SELECT id, source_id, remote_title
 FROM manga;
 
+getFavoriteTitles:
+SELECT id, source_id, remote_title
+FROM manga
+WHERE user_favorite_at IS NOT NULL;
+
 getFavoriteBySourceId:
 SELECT
     id, source_id, remote_url, remote_title, remote_author, remote_artist, remote_description,
@@ -131,9 +136,8 @@ SELECT
 FROM manga M
 WHERE M.user_favorite_at IS NOT NULL
 AND M.id != :id
--- A blank title would match every title
 AND (
-    (trim(:remoteTitle) != '' AND lower(M.remote_title) LIKE '%' || lower(:remoteTitle) || '%')
+    M.id IN :titleMatchIds
     OR M.id IN (SELECT manga_id FROM track_dupes)
 );
 

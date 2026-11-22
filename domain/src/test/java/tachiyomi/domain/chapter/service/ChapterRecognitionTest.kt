@@ -119,6 +119,12 @@ class ChapterRecognitionTest {
     }
 
     @Test
+    fun `Manga title that is a number is not removed from the name`() {
+        assertNumbers("5", "Chapter 5" to ChapterNumbering(null, "5"))
+        assertNumbers("86", "Chapter 86.5" to ChapterNumbering(null, "86.5"))
+    }
+
+    @Test
     fun `Space between ch x`() {
         assertNumbers(
             "Mokushiroku Alice",

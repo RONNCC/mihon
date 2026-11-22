@@ -331,6 +331,22 @@ class FetchIntervalTest {
         nextUpdate(today = "2020-01-01", chapters) shouldBe LocalDate.parse("2020-01-01")
     }
 
+    @Test
+    fun `window spans whole calendar days when the clock changes`() {
+        val newYork = TimeZone.of("America/New_York")
+        val fetchInterval = FetchInterval(mockk())
+
+        // The clocks go back on 2020-11-01, making it a 25 hour day
+        val fallBack = fetchInterval.getWindow(LocalDate.parse("2020-11-01"), newYork)
+        fallBack.start shouldBe LocalDate.parse("2020-10-31").atStartOfDayIn(newYork)
+        fallBack.endInclusive shouldBe LocalDate.parse("2020-11-02").atStartOfDayIn(newYork)
+
+        // The clocks go forward on 2020-03-08, making it a 23 hour day
+        val springForward = fetchInterval.getWindow(LocalDate.parse("2020-03-08"), newYork)
+        springForward.start shouldBe LocalDate.parse("2020-03-07").atStartOfDayIn(newYork)
+        springForward.endInclusive shouldBe LocalDate.parse("2020-03-09").atStartOfDayIn(newYork)
+    }
+
     private suspend fun nextUpdate(
         today: String,
         chapters: List<Chapter>,

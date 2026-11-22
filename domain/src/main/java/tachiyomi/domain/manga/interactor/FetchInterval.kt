@@ -1,16 +1,18 @@
 package tachiyomi.domain.manga.interactor
 
 import dev.zacsweers.metro.Inject
+import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.minus
+import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import tachiyomi.domain.chapter.interactor.GetChaptersByMangaId
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaUpdate
 import kotlin.time.Clock
-import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
 
@@ -62,13 +64,14 @@ class FetchInterval(
     }
 
     fun getWindow(localDateTime: LocalDate, timeZone: TimeZone): ClosedRange<Instant> {
-        val today = localDateTime.atStartOfDayIn(timeZone)
-        return (today - GRACE_PERIOD.days)..(today + GRACE_PERIOD.days)
+        // Calendar days, since a day is 23 or 25 hours long when the clock changes
+        val grace = DatePeriod(days = GRACE_PERIOD)
+        return localDateTime.minus(grace).atStartOfDayIn(timeZone)..localDateTime.plus(grace).atStartOfDayIn(timeZone)
     }
 
     companion object {
         const val MAX_INTERVAL = 28
 
-        private const val GRACE_PERIOD = 1L
+        private const val GRACE_PERIOD = 1
     }
 }

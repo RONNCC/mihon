@@ -96,4 +96,46 @@ class GetApplicationReleaseTest {
 
         result shouldBe GetApplicationRelease.Result.NoNewUpdate
     }
+
+    @Test
+    fun `Release version is compared component by component`() = runTest {
+        isUpdateAvailable(tag = "v0.9.0", current = "1.0.0") shouldBe false
+        isUpdateAvailable(tag = "v1.0.0", current = "0.9.0") shouldBe true
+        isUpdateAvailable(tag = "v0.10.0", current = "0.9.5") shouldBe true
+        isUpdateAvailable(tag = "v0.21.4", current = "0.21.3") shouldBe true
+        isUpdateAvailable(tag = "v0.21.3", current = "0.21.3") shouldBe false
+    }
+
+    @Test
+    fun `Release versions of different length are padded with zeros`() = runTest {
+        isUpdateAvailable(tag = "v1.0", current = "1.0.0") shouldBe false
+        isUpdateAvailable(tag = "v1.1", current = "1.0.5") shouldBe true
+        isUpdateAvailable(tag = "v1.0.0.1", current = "1.0") shouldBe true
+    }
+
+    @Test
+    fun `Build suffix of the installed version is ignored`() = runTest {
+        isUpdateAvailable(tag = "v0.21.3", current = "0.21.3-1234") shouldBe false
+        isUpdateAvailable(tag = "v0.21.4", current = "0.21.3-1234") shouldBe true
+    }
+
+    private suspend fun isUpdateAvailable(tag: String, current: String): Boolean {
+        coEvery { releaseService.latest(any()) } returns Release(
+            tag,
+            "info",
+            "http://example.com/release_link",
+            "http://example.com/release_link.apk",
+        )
+
+        val result = getApplicationRelease.await(
+            GetApplicationRelease.Arguments(
+                isFoss = false,
+                isNightly = false,
+                commitCount = 0,
+                versionName = current,
+                repository = "test",
+            ),
+        )
+        return result is GetApplicationRelease.Result.NewUpdate
+    }
 }

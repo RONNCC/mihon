@@ -3,6 +3,7 @@ package eu.kanade.tachiyomi.data.track.kavita
 import eu.kanade.tachiyomi.BuildConfig
 import okhttp3.Interceptor
 import okhttp3.Response
+import java.io.IOException
 
 class KavitaInterceptor(private val kavita: Kavita) : Interceptor {
 
@@ -13,7 +14,7 @@ class KavitaInterceptor(private val kavita: Kavita) : Interceptor {
         }
         val jwtToken = kavita.authentications?.getToken(
             kavita.api.getApiFromUrl(originalRequest.url.toString()),
-        )
+        ) ?: throw IOException("No Kavita source installed and configured for ${originalRequest.url.host}")
 
         // Add the authorization header to the original request.
         val authRequest = originalRequest.newBuilder()

@@ -129,8 +129,9 @@ class Kavita(
                 (0..7).map { bytes[it].toLong() and 0xff shl 8 * (7 - it) }
                     .reduce(Long::or) and Long.MAX_VALUE
             }
-            val preferences = runBlocking { sourceManager.value.get(sourceId) as ConfigurableSource }
-                .sourcePreferences()
+            // The extension may not be installed, or be a stub
+            val source = runBlocking { sourceManager.value.get(sourceId) } as? ConfigurableSource ?: continue
+            val preferences = source.sourcePreferences()
 
             val prefApiUrl = preferences.getString("APIURL", "")
             val prefApiKey = preferences.getString("APIKEY", "")
@@ -148,7 +149,10 @@ class Kavita(
             authentication.apiUrl = prefApiUrl
             authentication.jwtToken = token
         }
-        authentications = oauth
+        // Without a token, loading again once a source is installed and configured must stay possible
+        if (oauth.authentications.any { it.jwtToken.isNotEmpty() }) {
+            authentications = oauth
+        }
     }
 
     override suspend fun updateUserConfig() = Unit

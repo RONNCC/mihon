@@ -34,7 +34,8 @@ class BackupChapter(
         return Chapter.create().copy(
             url = this@BackupChapter.url,
             name = this@BackupChapter.name,
-            chapterNumber = this@BackupChapter.chapterNumber.toDouble(),
+            // Widening the float as is would restore 10.1 as 10.100000381, which then never matches the source's 10.1
+            chapterNumber = this@BackupChapter.chapterNumber.toString().toDouble(),
             scanlator = this@BackupChapter.scanlator,
             read = this@BackupChapter.read,
             bookmark = this@BackupChapter.bookmark,

@@ -20,6 +20,11 @@ class MissingChaptersTest {
     }
 
     @Test
+    fun `missingChaptersCount ignores every negative chapter number`() {
+        listOf(-2.0, -1.0, 1.0, 2.0).missingChaptersCount() shouldBe 0
+    }
+
+    @Test
     fun `missingChaptersCount handles repeated base chapter numbers`() {
         listOf(1.0, 1.0, 1.1, 1.5, 1.6, 1.99).missingChaptersCount() shouldBe 0
     }

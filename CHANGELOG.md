@@ -94,6 +94,17 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Fix the folder of the old chapter cache never being deleted ([#2099](https://github.com/mihonapp/mihon/issues/2099))
 - Fix the restore progress notification updating too often ([#3160](https://github.com/mihonapp/mihon/issues/3160))
 - Fix a manga's cached cover being removed even when the refresh of its details failed to save ([#367](https://github.com/mihonapp/mihon/issues/367))
+- Fix chapters without an upload date being rewritten on every refresh, and downloads looking missing when a source drops a chapter's scanlator
+- Fix missing chapter counts including chapters numbered -2 by the source, and tracker progress ignoring local progress when a chapter has no recognized number
+- Fix the app update check missing newer versions or reporting older ones, and failing on version names with a build suffix
+- Fix history search and duplicate detection ignoring the case of accented, Cyrillic and other non-ASCII letters, and treating "%" and "_" in titles as wildcards
+- Fix saved page names losing their extension when long
+- Fix resuming from history starting at the wrong chapter when the one last read is hidden by the scanlator filter
+- Fix chapter numbers of restored backups differing from the source's, such as 10.100000381 for 10.1
+- Fix manga titles that are numbers, or appear after the start of a chapter name, corrupting recognized chapter numbers
+- Fix a library search with an unmatched ")" ignoring everything after it
+- Fix library entries due for an update being skipped when the clocks change
+- Fix Kavita tracking crashing when its extension isn't installed, and the app running out of persisted file permissions after many backups
 
 ## [v0.21.3] - 2026-10-26
 ### Added

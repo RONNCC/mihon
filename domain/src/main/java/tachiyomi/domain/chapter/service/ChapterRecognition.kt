@@ -145,8 +145,15 @@ object ChapterRecognition {
      */
     private fun Double.isKnown(): Boolean = this == -2.0 || this > -1.0
 
+    /**
+     * Takes the manga title out of the start of the name. A title that is a number isn't, nor is one further in the
+     * name, since they could just as well be the chapter number.
+     */
     private fun cleanName(mangaTitle: String, chapterName: String): String {
-        return chapterName.lowercase().replace(mangaTitle.lowercase(), "")
+        val name = chapterName.lowercase()
+        val title = mangaTitle.lowercase().trim()
+        if (title.isEmpty() || title.all { it.isDigit() }) return name
+        return name.trimStart().removePrefix(title)
     }
 
     /**

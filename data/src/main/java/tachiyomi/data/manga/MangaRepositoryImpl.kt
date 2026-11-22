@@ -65,6 +65,12 @@ class MangaRepositoryImpl(
             .awaitAsList()
     }
 
+    override suspend fun getFavoriteTitles(): List<MangaTitle> {
+        return database.mangaQueries
+            .getFavoriteTitles(::MangaTitle)
+            .awaitAsList()
+    }
+
     override suspend fun getFavorites(): List<Manga> {
         return database.mangaQueries
             .getFavorites(MangaMapper::mapManga)
@@ -95,9 +101,9 @@ class MangaRepositoryImpl(
             .subscribeToList()
     }
 
-    override suspend fun getDuplicateLibraryManga(id: Long, title: String): List<MangaWithChapterCount> {
+    override suspend fun getDuplicateLibraryManga(id: Long, titleMatchIds: List<Long>): List<MangaWithChapterCount> {
         return database.mangaQueries
-            .getDuplicateLibraryManga(id, title, MangaMapper::mapMangaWithChapterCount)
+            .getDuplicateLibraryManga(id, titleMatchIds, MangaMapper::mapMangaWithChapterCount)
             .awaitAsList()
     }
 

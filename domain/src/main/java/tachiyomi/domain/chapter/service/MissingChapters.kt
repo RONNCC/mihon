@@ -10,7 +10,7 @@ fun List<Double>.missingChaptersCount(): Int {
 
     val chapters = this
         // Ignore unknown chapter numbers
-        .filterNot { it == -1.0 }
+        .filter { it >= 0.0 }
         // Convert to integers, as we cannot check if 16.5 is missing
         .map(Double::toInt)
         // Only keep unique chapters so that -1 or 16 are not counted multiple times

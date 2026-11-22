@@ -2,6 +2,7 @@ package mihon.domain.library.model.search
 
 class LibrarySearchParser(private val tokens: List<LibrarySearchLexer.Token>) {
     private var index = 0
+    private var depth = 0
 
     private fun peek(): LibrarySearchLexer.Token? = tokens.getOrNull(index)
     private fun advance(): LibrarySearchLexer.Token? = tokens.getOrNull(index++)
@@ -24,8 +25,9 @@ class LibrarySearchParser(private val tokens: List<LibrarySearchLexer.Token>) {
     private fun parseAnd(): QueryNode {
         val nodes = mutableListOf<QueryNode>()
 
+        // A ")" without a "(" is skipped by parseTerm, so the terms after it still count
         while (index < tokens.size && peek() !is LibrarySearchLexer.Token.Or &&
-            peek() !is LibrarySearchLexer.Token.RParen
+            (peek() !is LibrarySearchLexer.Token.RParen || depth == 0)
         ) {
             if (peek() is LibrarySearchLexer.Token.And) {
                 advance()
@@ -49,7 +51,9 @@ class LibrarySearchParser(private val tokens: List<LibrarySearchLexer.Token>) {
         if (peek() is LibrarySearchLexer.Token.LParen) {
             advance()
 
+            depth++
             val subTree = parseOr()
+            depth--
 
             if (peek() is LibrarySearchLexer.Token.RParen) {
                 advance()
