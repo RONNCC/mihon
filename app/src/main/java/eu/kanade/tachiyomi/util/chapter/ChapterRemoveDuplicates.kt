@@ -3,20 +3,24 @@ package eu.kanade.tachiyomi.util.chapter
 import tachiyomi.domain.chapter.model.Chapter
 
 /**
- * Returns a copy of the sorted list keeping one chapter of each run of neighbours sharing a recognised number.
- * The same number further on, like a new season starting again at 1, is another chapter.
+ * Returns a copy of the sorted list keeping one chapter of each recognised number, merging a chapter into the
+ * latest one before it with its number when that is its neighbour or from other scanlators. The same number
+ * further on from the same scanlator, like a new season starting again at 1, is another chapter.
  */
 fun List<Chapter>.removeDuplicates(currentChapter: Chapter): List<Chapter> {
-    val runs = mutableListOf<MutableList<Chapter>>()
+    val groups = mutableListOf<MutableList<Chapter>>()
+    val latestByNumber = mutableMapOf<Double, MutableList<Chapter>>()
     forEach { chapter ->
-        val run = runs.lastOrNull()
-        if (run != null && chapter.isRecognizedNumber && run.first().chapterNumber == chapter.chapterNumber) {
-            run += chapter
+        val earlier = latestByNumber[chapter.chapterNumber]?.takeIf { chapter.isRecognizedNumber }
+        if (earlier != null && (earlier === groups.last() || earlier.none { it.scanlator == chapter.scanlator })) {
+            earlier += chapter
         } else {
-            runs += mutableListOf(chapter)
+            val group = mutableListOf(chapter)
+            groups += group
+            latestByNumber[chapter.chapterNumber] = group
         }
     }
-    return runs.map { chapters ->
+    return groups.map { chapters ->
         chapters.find { it.id == currentChapter.id }
             ?: chapters.find { it.scanlator == currentChapter.scanlator }
             ?: chapters.first()

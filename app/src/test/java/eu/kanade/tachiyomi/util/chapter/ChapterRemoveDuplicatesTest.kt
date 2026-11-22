@@ -31,6 +31,27 @@ class ChapterRemoveDuplicatesTest {
     }
 
     @Test
+    fun `keeps a number that comes again from the same scanlator in its own place`() {
+        val chapters = listOf(chapter(1, 1.0, "A"), chapter(2, 2.0, "A"), chapter(3, 1.0, "A"), chapter(4, 2.0, "A"))
+
+        chapters.removeDuplicates(chapter(3, 1.0, "A")).map { it.id } shouldBe listOf(1L, 2L, 3L, 4L)
+    }
+
+    @Test
+    fun `keeps one chapter of each number from scanlators interleaved by upload date`() {
+        val chapters = listOf(
+            chapter(1, 1.0, "A"),
+            chapter(2, 2.0, "A"),
+            chapter(3, 1.0, "B"),
+            chapter(4, 2.0, "B"),
+            chapter(5, 3.0, "A"),
+        )
+
+        chapters.removeDuplicates(chapter(1, 1.0, "A")).map { it.id } shouldBe listOf(1L, 2L, 5L)
+        chapters.removeDuplicates(chapter(4, 2.0, "B")).map { it.id } shouldBe listOf(3L, 4L, 5L)
+    }
+
+    @Test
     fun `keeps every chapter without a recognised number`() {
         val chapters = listOf(chapter(1, -1.0), chapter(2, -1.0), chapter(3, 1.0))
 
