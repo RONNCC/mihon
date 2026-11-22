@@ -150,30 +150,38 @@ object DiskUtil {
      * device has been able to provide either directions to reproduce
      * their issue nor any documentation or tests that would allow us
      * to determine which characters are problems and which are not.
+     *
+     * [hexUtf16Units] reproduces the names given before characters outside
+     * the Basic Multilingual Plane, like emoji, were encoded as a whole:
+     * each half of such a character was encoded on its own, which made all
+     * of them "3f3f". It only serves to find downloads named that way.
      */
     fun buildValidFilename(
         origName: String,
         maxBytes: Int = MAX_FILE_NAME_BYTES,
         disallowNonAscii: Boolean = false,
+        hexUtf16Units: Boolean = false,
     ): String {
         val name = origName.trim('.', ' ')
         if (name.isEmpty()) {
             return "(invalid)"
         }
         val sb = StringBuilder(name.length)
-        name.forEach { c ->
-            if (disallowNonAscii && c >= 0x80.toChar()) {
+        var index = 0
+        while (index < name.length) {
+            val length = if (hexUtf16Units) 1 else Character.charCount(name.codePointAt(index))
+            val character = name.substring(index, index + length)
+            index += length
+            if (disallowNonAscii && character[0] >= 0x80.toChar()) {
                 sb.append(
-                    c.toString().toByteArray(Charsets.UTF_8).toHexString(
+                    character.toByteArray(Charsets.UTF_8).toHexString(
                         HexFormat {
                             upperCase = false
                         },
                     ),
                 )
-            } else if (isValidFatFilenameChar(c)) {
-                sb.append(c)
             } else {
-                sb.append('_')
+                character.forEach { c -> sb.append(if (isValidFatFilenameChar(c)) c else '_') }
             }
         }
         return truncateToLength(sb.toString(), maxBytes)

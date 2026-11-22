@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.util.storage.DiskUtil
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.shouldBe
 import io.mockk.mockk
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -53,6 +54,17 @@ class DownloadProviderTest {
 
         provider(disallowNonAscii).getValidChapterDirNames(name, scanlator, URL) shouldContain
             dirName0210(name, scanlator, URL, disallowNonAscii)
+    }
+
+    @Test
+    fun `finds chapters downloaded when emoji were all named 3f3f and tells them apart now`() {
+        val provider = provider(disallowNonAscii = true)
+        val old = "3f3f_" + md5(URL).take(6)
+
+        provider.getValidChapterDirNames("\uD83D\uDE00", null, URL) shouldContain old
+        provider.getValidChapterDirNames("\uD83D\uDE01", null, URL) shouldContain old
+        provider.getChapterDirName("\uD83D\uDE00", null, URL) shouldBe "f09f9880_" + md5(URL).take(6)
+        provider.getChapterDirName("\uD83D\uDE01", null, URL) shouldBe "f09f9881_" + md5(URL).take(6)
     }
 
     companion object {

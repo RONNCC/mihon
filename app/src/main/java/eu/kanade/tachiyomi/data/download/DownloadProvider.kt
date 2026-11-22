@@ -287,6 +287,20 @@ class DownloadProvider(
             emptyList()
         }
 
+        // Characters outside the BMP, like emoji, used to be encoded in halves, all of them as the same "3f3f"
+        val utf16HexChapterDirNames = if (parts.hasSurrogates) {
+            listOf(false, true).flatMap { enableChapterNameHash ->
+                buildList {
+                    add(parts.dirName(disallowNonAscii = true, enableChapterNameHash, hexUtf16Units = true))
+                    listOf(true, false).forEach { sanitize ->
+                        add(parts.splitDirName(true, enableChapterNameHash, sanitize, hexUtf16Units = true))
+                    }
+                }
+            }
+        } else {
+            emptyList()
+        }
+
         return buildSet {
             // Chapter name without hash (unable to handle duplicate
             // chapter names)
@@ -294,6 +308,7 @@ class DownloadProvider(
             addAll(othersChapterDirNames)
             addAll(splitChapterDirNames)
             addAll(unsanitizedScanlatorChapterDirNames)
+            addAll(utf16HexChapterDirNames)
         }
     }
 
@@ -350,12 +365,22 @@ private class ChapterDirNameParts(chapterName: String, val chapterScanlator: Str
         chapterScanlator?.let { DiskUtil.buildValidFilename(it) }
     }
 
-    private val validDirNames = arrayOfNulls<String>(2)
+    /** Whether a name has characters outside the BMP, the only ones [hexUtf16Units] makes a difference for. */
+    val hasSurrogates = this.chapterName.any { it.isSurrogate() } || chapterScanlator?.any { it.isSurrogate() } == true
 
-    private val validChapterNames = arrayOfNulls<String>(2)
+    // Plain, non-ASCII disallowed, and non-ASCII disallowed by the encoding that preceded [hexUtf16Units]
+    private val validDirNames = arrayOfNulls<String>(3)
 
-    fun dirName(disallowNonAscii: Boolean, enableHash: Boolean): String {
-        val index = if (disallowNonAscii) 1 else 0
+    private val validChapterNames = arrayOfNulls<String>(3)
+
+    private fun cacheIndex(disallowNonAscii: Boolean, hexUtf16Units: Boolean) = when {
+        hexUtf16Units -> 2
+        disallowNonAscii -> 1
+        else -> 0
+    }
+
+    fun dirName(disallowNonAscii: Boolean, enableHash: Boolean, hexUtf16Units: Boolean = false): String {
+        val index = cacheIndex(disallowNonAscii, hexUtf16Units)
         val dirName = validDirNames[index]
             // The scanlator and the name are made valid together, as every version before 0.21.0 did
             ?: DiskUtil.buildValidFilename(
@@ -363,6 +388,7 @@ private class ChapterDirNameParts(chapterName: String, val chapterScanlator: Str
                 // Subtract 7 bytes for hash and underscore, 4 bytes for .cbz
                 DiskUtil.MAX_FILE_NAME_BYTES - 11,
                 disallowNonAscii,
+                hexUtf16Units,
             )
                 .also { validDirNames[index] = it }
         return if (enableHash) dirName + hashSuffix else dirName
@@ -372,23 +398,33 @@ private class ChapterDirNameParts(chapterName: String, val chapterScanlator: Str
      * The name 0.21.0 and 0.21.1 gave a chapter, which made only the chapter name valid and so differs for names
      * starting with a space or dot, long names, and non-ASCII scanlators.
      */
-    fun splitDirName(disallowNonAscii: Boolean, enableHash: Boolean, sanitizeScanlator: Boolean): String {
+    fun splitDirName(
+        disallowNonAscii: Boolean,
+        enableHash: Boolean,
+        sanitizeScanlator: Boolean,
+        hexUtf16Units: Boolean = false,
+    ): String {
         return buildString {
             if (!chapterScanlator.isNullOrBlank()) {
                 // A "/" in the scanlator would otherwise nest the chapter in a folder of its own
                 append(if (sanitizeScanlator) sanitizedScanlator else chapterScanlator)
                 append("_")
             }
-            append(validChapterName(disallowNonAscii))
+            append(validChapterName(disallowNonAscii, hexUtf16Units))
             if (enableHash) append(hashSuffix)
         }
     }
 
-    private fun validChapterName(disallowNonAscii: Boolean): String {
-        val index = if (disallowNonAscii) 1 else 0
+    private fun validChapterName(disallowNonAscii: Boolean, hexUtf16Units: Boolean): String {
+        val index = cacheIndex(disallowNonAscii, hexUtf16Units)
         return validChapterNames[index]
             // Subtract 7 bytes for hash and underscore, 4 bytes for .cbz
-            ?: DiskUtil.buildValidFilename(chapterName, DiskUtil.MAX_FILE_NAME_BYTES - 11, disallowNonAscii)
+            ?: DiskUtil.buildValidFilename(
+                chapterName,
+                DiskUtil.MAX_FILE_NAME_BYTES - 11,
+                disallowNonAscii,
+                hexUtf16Units,
+            )
                 .also { validChapterNames[index] = it }
     }
 }
