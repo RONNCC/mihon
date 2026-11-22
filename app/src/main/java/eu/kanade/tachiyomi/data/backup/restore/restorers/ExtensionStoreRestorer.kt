@@ -4,7 +4,6 @@ import dev.zacsweers.metro.Inject
 import eu.kanade.tachiyomi.data.backup.models.BackupExtensionStore
 import mihon.domain.extension.model.ExtensionStore
 import mihon.domain.extension.repository.ExtensionStoreRepository
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 @Inject
 class ExtensionStoreRestorer(
@@ -19,9 +18,6 @@ class ExtensionStoreRestorer(
     suspend operator fun invoke(
         backupStore: BackupExtensionStore,
     ) {
-        require(backupStore.indexUrl.toHttpUrlOrNull()?.isHttps == true) {
-            "Extension stores must use HTTPS: ${backupStore.indexUrl}"
-        }
         if (extensionStoreRepository.getAll().any { it.indexUrl == backupStore.indexUrl }) return
         if (extensionStoreRepository.insert(backupStore.indexUrl).isSuccess) return
 

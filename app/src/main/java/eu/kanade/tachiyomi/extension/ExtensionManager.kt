@@ -40,7 +40,6 @@ import mihon.domain.extension.interactor.UpdateExtensionStores
 import mihon.domain.extension.model.ExtensionListing
 import mihon.domain.extension.model.ExtensionStore
 import mihon.domain.extension.repository.ExtensionStoreRepository
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.source.model.StubSource
@@ -205,28 +204,17 @@ class ExtensionManager(
     }
 
     /**
-     * Refreshes the stores from their indexes and warns about those whose signing key changed or that can't be
-     * fetched because they don't use HTTPS.
+     * Refreshes the stores from their indexes and warns about those whose signing key changed.
      */
     suspend fun refreshStores() {
         val keyChanged = updateExtensionStores()
-        val notHttps = extensionStoreRepository.getAll().filterNot { it.indexUrl.toHttpUrlOrNull()?.isHttps == true }
-        val warnings = buildList {
-            if (keyChanged.isNotEmpty()) {
-                add(
-                    context.stringResource(
-                        MR.strings.extensionStores_signingKeyChanged,
-                        keyChanged.joinToString { it.name },
-                    ),
-                )
-            }
-            if (notHttps.isNotEmpty()) {
-                add(context.stringResource(MR.strings.extensionStores_httpsRequired, notHttps.joinToString { it.name }))
-            }
-        }
-        if (warnings.isEmpty()) return
+        if (keyChanged.isEmpty()) return
+        val names = keyChanged.joinToString { it.name }
         withContext(Dispatchers.Main) {
-            context.toast(warnings.joinToString("\n"), Toast.LENGTH_LONG)
+            context.toast(
+                context.stringResource(MR.strings.extensionStores_signingKeyChanged, names),
+                Toast.LENGTH_LONG,
+            )
         }
     }
 

@@ -1,7 +1,6 @@
 package eu.kanade.tachiyomi.data.backup.restore.restorers
 
 import eu.kanade.tachiyomi.data.backup.models.BackupExtensionStore
-import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -74,12 +73,13 @@ class ExtensionStoreRestorerTest {
     }
 
     @Test
-    fun `A store over plain HTTP isn't restored`() = runTest {
-        shouldThrow<IllegalArgumentException> {
-            restorer(backupStore("http://example.com/index.pb"))
-        }
+    fun `A store over plain HTTP is added from its index`() = runTest {
+        coEvery { repository.getAll() } returns emptyList()
+        coEvery { repository.insert(any()) } returns Result.success(Unit)
 
-        coVerify(exactly = 0) { repository.insert(any()) }
+        restorer(backupStore("http://example.com/index.pb"))
+
+        coVerify { repository.insert("http://example.com/index.pb") }
         coVerify(exactly = 0) { repository.upsert(any()) }
     }
 }
