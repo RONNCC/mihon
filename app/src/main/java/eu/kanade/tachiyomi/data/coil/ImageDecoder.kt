@@ -169,9 +169,7 @@ class ImageDecoder(private val resources: ImageSource, private val options: Opti
         }
 
         private fun isApplicable(source: BufferedSource): Boolean {
-            val type = source.peek().inputStream().use {
-                ImageUtil.findImageType(it)
-            }
+            val type = ImageUtil.findImageType { source.peek().inputStream() }
             return when (type) {
                 ImageUtil.ImageType.AVIF,
                 ImageUtil.ImageType.JXL,

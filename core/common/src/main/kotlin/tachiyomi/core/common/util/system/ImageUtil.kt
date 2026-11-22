@@ -44,12 +44,8 @@ object ImageUtil {
     }
 
     fun findImageType(openStream: () -> InputStream): ImageType? {
-        return openStream().use { findImageType(it) }
-    }
-
-    fun findImageType(stream: InputStream): ImageType? {
         return try {
-            val format = ImageDecoder.open(stream).use { dec -> dec.format }
+            val format = openHeader(openStream).use { dec -> dec.format }
             when (format) {
                 ImageDecoder.Format.JPEG -> ImageType.JPEG
                 ImageDecoder.Format.PNG -> ImageType.PNG
@@ -74,7 +70,7 @@ object ImageUtil {
 
     fun isAnimatedAndSupported(source: BufferedSource): Boolean {
         return try {
-            val type = findImageType(source.peek().inputStream()) ?: return false
+            val type = findImageType { source.peek().inputStream() } ?: return false
             when (type) {
                 ImageType.GIF -> true
                 ImageType.WEBP, ImageType.HEIF -> {
@@ -111,7 +107,7 @@ object ImageUtil {
         // The reader's decoder, not BitmapFactory: its size is after EXIF orientation, and it reads formats
         // BitmapFactory can't, so this agrees with how the page is shown
         return try {
-            openHeader(imageSource).use { it.width > it.height }
+            openHeader { imageSource.peek().inputStream() }.use { it.width > it.height }
         } catch (e: Exception) {
             logcat(LogPriority.ERROR) { "isWideImage: ${e.message}" }
             false
@@ -119,15 +115,17 @@ object ImageUtil {
     }
 
     /** A decoder that read only the header, unless the format needs the whole file, as JPEG 2000 does. */
-    private fun openHeader(imageSource: BufferedSource): ImageDecoder {
-        // available() 0 stops the read after the header
-        val headerOnly = object : FilterInputStream(imageSource.peek().inputStream()) {
-            override fun available() = 0
-        }
+    private fun openHeader(openStream: () -> InputStream): ImageDecoder {
         return try {
-            ImageDecoder.open(headerOnly, complete = false)
+            openStream().use { stream ->
+                // available() 0 stops the read after the header
+                val headerOnly = object : FilterInputStream(stream) {
+                    override fun available() = 0
+                }
+                ImageDecoder.open(headerOnly, complete = false)
+            }
         } catch (e: ImageDecoder.DecodeException) {
-            ImageDecoder.open(imageSource.peek().inputStream())
+            openStream().use { ImageDecoder.open(it) }
         }
     }
 
