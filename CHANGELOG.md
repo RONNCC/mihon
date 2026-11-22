@@ -59,6 +59,13 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Fix Hikka being logged out by transient errors
 - Fix library updates hanging on a source that keeps failing to connect, reporting a cancelled update as failed, and not notifying or downloading the chapters found before a stopped update
 - Fix the last library update time being recorded before the update finishes, and metadata refreshes that can't be cancelled, overlap library updates or fail to start silently
+- Fix selecting all or inverting the chapter selection including chapters hidden by a filter, and range selection crashing when the list changes in between
+- Fix deep links crashing the app when the source fails to load them
+- Fix the navigation bar staying hidden when a tab is switched from selection mode
+- Fix the chosen "remove from tracker" option being lost on rotation
+- Fix deleting a single downloaded chapter of an uninstalled extension doing nothing ([#2588](https://github.com/mihonapp/mihon/issues/2588))
+- Fix the back button not clearing the history search ([#2924](https://github.com/mihonapp/mihon/issues/2924))
+- Fix tapping the title in the reader resetting the browse navigation back stack ([#2563](https://github.com/mihonapp/mihon/issues/2563))
 
 ## [v0.21.3] - 2026-10-26
 ### Added
