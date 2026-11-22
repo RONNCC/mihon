@@ -53,4 +53,36 @@ class PagerItemsTest {
 
         update.insertPage shouldBe split
     }
+
+    @Test
+    fun `Removing split pages keeps the page whose half is shown`() {
+        val current = chapter(1, pageCount = 4)
+        val pages = current.pages!!
+        items.setChapters(ViewerChapters(current, null, null), forceTransition = false, currentPosition = 0)
+        items.onPageSplit(pages[0], InsertPage(pages[0]))
+        val secondHalf = InsertPage(pages[2])
+        items.onPageSplit(pages[2], secondHalf)
+
+        val position = items.cleanupPageSplit(items.items.indexOf(secondHalf))
+
+        items.items[position] shouldBe pages[2]
+    }
+
+    @Test
+    fun `Removing split pages drops those of adjacent chapters`() {
+        val first = chapter(1, pageCount = 2)
+        val second = chapter(2, pageCount = 2)
+        val page = second.pages!!.first()
+        items.setChapters(ViewerChapters(first, null, second), forceTransition = false, currentPosition = 0)
+        items.onPageSplit(page, InsertPage(page))
+
+        items.cleanupPageSplit(0)
+        items.setChapters(
+            ViewerChapters(second, first, null),
+            forceTransition = false,
+            currentPosition = items.items.indexOf(page),
+        )
+
+        items.items.filterIsInstance<InsertPage>() shouldBe emptyList()
+    }
 }

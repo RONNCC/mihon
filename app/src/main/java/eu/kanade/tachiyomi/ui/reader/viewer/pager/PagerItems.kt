@@ -113,8 +113,16 @@ class PagerItems(private val isReversed: Boolean) {
         return true
     }
 
-    fun cleanupPageSplit() {
+    /**
+     * Removes the split pages while the pager is at [currentPosition], and returns where it goes to stay on the page
+     * it shows, or -1.
+     */
+    fun cleanupPageSplit(currentPosition: Int): Int {
+        val currentItem = items.getOrNull(currentPosition)
+        // Split while adjacent, they would come back with their chapter
+        preprocessed = emptyList()
         items = items.filterNot { it is InsertPage }
+        return items.indexOf((currentItem as? InsertPage)?.parent ?: currentItem)
     }
 
     /**

@@ -91,8 +91,10 @@ class PagerViewerAdapter(
     }
 
     fun cleanupPageSplit() {
-        pagerItems.cleanupPageSplit()
+        val position = pagerItems.cleanupPageSplit(viewer.pager.currentItem)
         notifyDataSetChanged()
+        // On a removed half the pager keeps its index, which now holds another page
+        if (position != -1) viewer.pager.setCurrentItem(position, false)
     }
 
     fun refresh() {
