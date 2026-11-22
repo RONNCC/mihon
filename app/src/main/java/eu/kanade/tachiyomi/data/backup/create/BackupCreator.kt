@@ -107,11 +107,11 @@ class BackupCreator(
             backupFileValidator.validate(fileUri)
 
             if (isAutoBackup) {
-                backupPreferences.lastAutoBackupTimestamp.set(Clock.System.now().toEpochMilliseconds())
-
                 // Only rotate once the new backup is known to be good
                 val backups = dir?.listFiles { _, filename -> FILENAME_REGEX.matches(filename) }.orEmpty().toList()
                 getBackupsToDelete(backups, file).forEach { it.delete() }
+
+                backupPreferences.lastAutoBackupTimestamp.set(Clock.System.now().toEpochMilliseconds())
             }
 
             return fileUri.toString()
