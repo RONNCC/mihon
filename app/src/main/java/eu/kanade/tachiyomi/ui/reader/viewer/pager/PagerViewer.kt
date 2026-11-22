@@ -18,7 +18,6 @@ import androidx.core.view.isVisible
 import androidx.viewpager.widget.ViewPager
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.ui.reader.ReaderActivity
-import eu.kanade.tachiyomi.ui.reader.model.ChapterTransition
 import eu.kanade.tachiyomi.ui.reader.model.InsertPage
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
@@ -209,9 +208,7 @@ abstract class PagerViewer(val activity: ReaderActivity) : Viewer {
         // Remove listener so the change in item doesn't trigger it
         pager.removeOnPageChangeListener(pagerListener)
 
-        val forceTransition = general.alwaysShowChapterTransition ||
-            adapter.items.getOrNull(pager.currentItem) is ChapterTransition
-        adapter.setChapters(chapters, forceTransition)
+        adapter.setChapters(chapters, general.alwaysShowChapterTransition)
 
         // Layout the pager once a chapter is being set
         if (pager.isGone) {

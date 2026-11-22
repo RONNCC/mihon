@@ -55,12 +55,11 @@ class PagerItems(private val isReversed: Boolean) {
                 }
         }
 
-        val newItems = viewerItems(chapters, forceTransition, currPages)
+        val currentItem = items.getOrNull(currentPosition)
+        val newItems = viewerItems(chapters, forceTransition, currPages, currentItem as? ChapterTransition)
         val enteredFromNext = currentChapter?.chapter?.id == chapters.nextChapter?.chapter?.id
         currentChapter = chapters.currChapter
         nextTransition = ChapterTransition.Next(chapters.currChapter, chapters.nextChapter)
-
-        val currentItem = items.getOrNull(currentPosition)
 
         if (isReversed) {
             newItems.reverse()

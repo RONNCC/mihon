@@ -1,5 +1,6 @@
 package eu.kanade.tachiyomi.ui.reader.viewer.pager
 
+import eu.kanade.tachiyomi.ui.reader.model.ChapterTransition
 import eu.kanade.tachiyomi.ui.reader.model.InsertPage
 import eu.kanade.tachiyomi.ui.reader.model.ReaderChapter
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
@@ -84,5 +85,26 @@ class PagerItemsTest {
         )
 
         items.items.filterIsInstance<InsertPage>() shouldBe emptyList()
+    }
+
+    @Test
+    fun `Loading the next chapter keeps only the transition being shown`() {
+        val prev = chapter(1, pageCount = 1)
+        val current = chapter(2, pageCount = 1)
+        val next = chapter(3, pageCount = 1)
+        val nextPages = next.state
+        next.state = ReaderChapter.State.Wait
+        items.setChapters(ViewerChapters(current, prev, next), forceTransition = false, currentPosition = 0)
+        val nextTransition = items.items.single { it is ChapterTransition.Next }
+
+        next.state = nextPages
+        items.setChapters(
+            ViewerChapters(current, prev, next),
+            forceTransition = false,
+            currentPosition = items.items.indexOf(nextTransition),
+        )
+
+        val transitions = items.items.filterIsInstance<ChapterTransition>()
+        transitions.map { it::class } shouldBe listOf(ChapterTransition.Next::class)
     }
 }
