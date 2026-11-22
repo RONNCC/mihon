@@ -45,6 +45,8 @@ class WebtoonStripImageView(context: Context) : View(context) {
         strips = image.strips
         imageWidth = image.width
         imageHeight = image.height
+        // Decoded after the page went off screen, so detaching won't release it
+        if (!isAttachedToWindow) releaseLargeStrips()
         requestLayout()
         invalidate()
     }
@@ -58,10 +60,14 @@ class WebtoonStripImageView(context: Context) : View(context) {
         requestLayout()
     }
 
-    // The viewer keeps a few pages off screen without recycling them, which adds up for huge pages.
-    // The size stays, so the layout doesn't move while the page decodes again.
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        releaseLargeStrips()
+    }
+
+    // The viewer keeps a few pages off screen without recycling them, which adds up for huge pages.
+    // The size stays, so the layout doesn't move while the page decodes again.
+    private fun releaseLargeStrips() {
         if (strips.sumOf { it.allocationByteCount.toLong() } > LARGE_PAGE_BYTES) {
             releaseStrips()
             isReleasedOffScreen = true
