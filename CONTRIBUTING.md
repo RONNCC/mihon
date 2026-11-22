@@ -1,4 +1,7 @@
-Looking to report an issue/bug or make a feature request? Please refer to the [README file](https://github.com/mihonapp/mihon#issues-feature-requests-and-contributing).
+> [!NOTE]
+> This is the RONNCC fork of Mihon. Fork-only problems go to the fork's maintainer, not to upstream. The Discord, website and Weblate links below belong to upstream Mihon. See the [README](./README.md).
+
+Looking to report an issue/bug or make a feature request for upstream Mihon? Please refer to the [upstream README](https://github.com/mihonapp/mihon#readme).
 
 ---
 
