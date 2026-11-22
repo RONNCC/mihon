@@ -6,6 +6,7 @@ import eu.kanade.tachiyomi.ui.reader.model.ChapterTransition
 import eu.kanade.tachiyomi.ui.reader.model.InsertPage
 import eu.kanade.tachiyomi.ui.reader.model.ReaderPage
 import eu.kanade.tachiyomi.ui.reader.model.ViewerChapters
+import eu.kanade.tachiyomi.ui.reader.viewer.ReaderPageImageView
 import eu.kanade.tachiyomi.util.system.createReaderThemeContext
 import eu.kanade.tachiyomi.widget.ViewPagerAdapter
 import tachiyomi.core.common.util.system.logcat
@@ -61,6 +62,11 @@ class PagerViewerAdapter(
             is ChapterTransition -> PagerTransitionHolder(readerThemedContext, viewer, item)
             else -> throw NotImplementedError("Holder for ${item.javaClass} not implemented")
         }
+    }
+
+    // The page image view holds its native decoder until recycled, which removing it doesn't do
+    override fun destroyView(container: ViewGroup, position: Int, view: View) {
+        (view as? ReaderPageImageView)?.recycle()
     }
 
     /**
