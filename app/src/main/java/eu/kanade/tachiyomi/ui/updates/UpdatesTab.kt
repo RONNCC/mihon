@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.result.LocalResultEventBus
@@ -98,8 +99,9 @@ fun UpdatesTab() {
     }
 
     // A tab switch from selection mode would otherwise leave the navigation hidden
+    val currentSelectionMode by rememberUpdatedState(state.selectionMode)
     DisposableEffect(Unit) {
-        onDispose { resultBus.sendResult(ShowBottomNavEvent(true)) }
+        onDispose { if (currentSelectionMode) resultBus.sendResult(ShowBottomNavEvent(true)) }
     }
 
     LaunchedEffect(state.isLoading) {

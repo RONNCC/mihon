@@ -11,6 +11,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -244,8 +245,9 @@ fun LibraryTab() {
     }
 
     // A tab switch from selection mode would otherwise leave the navigation hidden
+    val currentSelectionMode by rememberUpdatedState(state.selectionMode)
     DisposableEffect(Unit) {
-        onDispose { resultBus.sendResult(ShowBottomNavEvent(true)) }
+        onDispose { if (currentSelectionMode) resultBus.sendResult(ShowBottomNavEvent(true)) }
     }
 
     LaunchedEffect(state.isLoading) {
