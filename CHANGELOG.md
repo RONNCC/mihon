@@ -61,6 +61,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Fix the last library update time being recorded before the update finishes, and metadata refreshes that can't be cancelled, overlap library updates or fail to start silently
 - Fix links opened from other apps or sites logging out of a tracker or logging in to someone else's tracker account
 - Fix extension stores being added over plain HTTP and adopting a changed signing key from their index without asking
+- Fix the app freezing and closing when extension installs take longer than 3 minutes on Android 14 and newer
 
 ## [v0.21.3] - 2026-10-26
 ### Added
