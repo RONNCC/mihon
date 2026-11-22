@@ -19,6 +19,8 @@ import mihon.data.extension.model.NetworkLegacyExtension
 import mihon.data.extension.model.NetworkLegacyExtensionRepo
 import mihon.data.extension.model.toAvailableExtensions
 import mihon.domain.extension.model.ExtensionStore
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.Response
 import okio.BufferedSource
 import okio.buffer
 import okio.gzip
@@ -37,7 +39,7 @@ class ExtensionStoreService(
     private suspend fun fetchStore(indexUrl: String, followIndexV2: Boolean = true): Result<ExtensionStore> {
         var updatedIndexUrl: String = indexUrl
         return try {
-            val response = network.client.newCall(GET(updatedIndexUrl)).awaitSuccess()
+            val response = getOverHttps(updatedIndexUrl)
             val store = response.body.source().decompressIfGzipped().use { source ->
                 val networkStore = when (source.peek().readByte()) {
                     // "[..."
@@ -46,7 +48,7 @@ class ExtensionStoreService(
                             throw IllegalArgumentException("Provided legacy store url is not valid")
                         }
                         updatedIndexUrl = indexUrl.replace("/index.min.json", "/repo.json")
-                        network.client.newCall(GET(updatedIndexUrl)).awaitSuccess().body.source().use {
+                        getOverHttps(updatedIndexUrl).body.source().use {
                             json.decodeFromBufferedSource<NetworkLegacyExtensionRepo>(it)
                         }
                     }
@@ -80,7 +82,7 @@ class ExtensionStoreService(
     suspend fun getExtensions(store: ExtensionStore): Result<List<Extension.Available>> = withContext(Dispatchers.IO) {
         try {
             val extensions = if (store.extensionListUrl != null) {
-                val response = network.client.newCall(GET(store.extensionListUrl!!)).awaitSuccess()
+                val response = getOverHttps(store.extensionListUrl!!)
                 response.body.source().decompressIfGzipped().use { source ->
                     when (source.peek().readByte()) {
                         // "{..."
@@ -92,7 +94,7 @@ class ExtensionStoreService(
                         .toAvailableExtensions(store)
                 }
             } else if (!store.isLegacy) {
-                val response = network.client.newCall(GET(store.indexUrl)).awaitSuccess()
+                val response = getOverHttps(store.indexUrl)
                 response.body.source().decompressIfGzipped().use { source ->
                     when (source.peek().readByte()) {
                         // "{..."
@@ -104,7 +106,7 @@ class ExtensionStoreService(
                 }
             } else {
                 val storeBaseUrl = store.indexUrl.removeSuffix("/repo.json")
-                val response = network.client.newCall(GET("$storeBaseUrl/index.min.json")).awaitSuccess()
+                val response = getOverHttps("$storeBaseUrl/index.min.json")
                 response.body.source().use { source ->
                     json.decodeFromBufferedSource<List<NetworkLegacyExtension>>(source)
                         .mapNotNull { it.toAvailableExtension(store, storeBaseUrl) }
@@ -116,6 +118,12 @@ class ExtensionStoreService(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    private suspend fun getOverHttps(url: String): Response {
+        // The index names the key its extensions are trusted by, so it can't be readable or replaceable in transit
+        require(url.toHttpUrl().isHttps) { "Extension stores must use HTTPS: $url" }
+        return network.client.newCall(GET(url)).awaitSuccess()
     }
 
     private fun BufferedSource.decompressIfGzipped(): BufferedSource {

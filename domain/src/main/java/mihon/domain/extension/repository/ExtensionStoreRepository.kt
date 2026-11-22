@@ -11,7 +11,12 @@ interface ExtensionStoreRepository {
 
     suspend fun upsert(store: ExtensionStore)
 
-    suspend fun refreshAll()
+    /**
+     * Refreshes the stores from their indexes, except those whose signing key changed, which are kept as they were.
+     *
+     * @return the stores whose signing key changed.
+     */
+    suspend fun refreshAll(): List<ExtensionStore>
 
     /**
      * @throws java.io.IOException when there are stores but none of them could be reached.

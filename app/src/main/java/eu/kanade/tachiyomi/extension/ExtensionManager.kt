@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.extension
 
 import android.content.Context
+import android.widget.Toast
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
@@ -39,6 +40,7 @@ import mihon.domain.extension.interactor.UpdateExtensionStores
 import mihon.domain.extension.model.ExtensionListing
 import mihon.domain.extension.model.ExtensionStore
 import mihon.domain.extension.repository.ExtensionStoreRepository
+import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.source.model.StubSource
 import tachiyomi.i18n.MR
@@ -202,12 +204,27 @@ class ExtensionManager(
     }
 
     /**
+     * Refreshes the stores from their indexes and warns about those whose signing key changed.
+     */
+    suspend fun refreshStores() {
+        val keyChanged = updateExtensionStores()
+        if (keyChanged.isEmpty()) return
+        val names = keyChanged.joinToString { it.name }
+        withContext(Dispatchers.Main) {
+            context.toast(
+                context.stringResource(MR.strings.extensionStores_signingKeyChanged, names),
+                Toast.LENGTH_LONG,
+            )
+        }
+    }
+
+    /**
      * Refreshes the stores and their listings like [findAvailableExtensions], then notifies about the
      * installed extensions that have an update. Stays silent when the stores can't be reached.
      */
     suspend fun checkForUpdates() {
         val listing = try {
-            updateExtensionStores()
+            refreshStores()
             extensionStoreRepository.fetchExtensions()
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e)
