@@ -259,7 +259,7 @@ fun MangaScreen(
                 }
             val manga by vm.state.collectAsStateWithLifecycle()
             if (manga != null) {
-                val getContent = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {
+                val pickCover = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
                     if (it == null) return@rememberLauncherForActivityResult
                     vm.editCover(context, it)
                 }
@@ -272,7 +272,7 @@ fun MangaScreen(
                     onSaveClick = saveCover,
                     onEditClick = {
                         when (it) {
-                            EditCoverAction.EDIT -> getContent.launch("image/*")
+                            EditCoverAction.EDIT -> pickCover.launch(arrayOf("image/*"))
                             EditCoverAction.DELETE -> vm.deleteCustomCover(context)
                             EditCoverAction.ADD_TO_LIBRARY -> vm.addToLibraryWarning(context)
                         }
