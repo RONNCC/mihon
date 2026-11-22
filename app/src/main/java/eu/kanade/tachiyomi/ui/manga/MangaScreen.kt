@@ -309,7 +309,7 @@ private fun continueReading(context: Context, unreadChapter: Chapter?) {
 }
 
 private fun openChapter(context: Context, chapter: Chapter) {
-    context.startActivity(ReaderActivity.newIntent(context, chapter.mangaId, chapter.id))
+    context.startActivity(ReaderActivity.newIntent(context, chapter.mangaId, chapter.id, fromMangaScreen = true))
 }
 
 private fun getMangaUrl(manga_: Manga?, source_: Source?): String? {

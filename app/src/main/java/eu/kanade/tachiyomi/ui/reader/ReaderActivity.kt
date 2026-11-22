@@ -128,10 +128,13 @@ class ReaderActivity : BaseActivity() {
     private val graph: AppGraph by lazy { metroGraph() }
 
     companion object {
-        fun newIntent(context: Context, mangaId: Long?, chapterId: Long?): Intent {
+        private const val EXTRA_FROM_MANGA_SCREEN = "fromMangaScreen"
+
+        fun newIntent(context: Context, mangaId: Long?, chapterId: Long?, fromMangaScreen: Boolean = false): Intent {
             return Intent(context, ReaderActivity::class.java).apply {
                 putExtra("manga", mangaId)
                 putExtra("chapter", chapterId)
+                putExtra(EXTRA_FROM_MANGA_SCREEN, fromMangaScreen)
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
         }
@@ -668,6 +671,11 @@ class ReaderActivity : BaseActivity() {
     }
 
     private fun openMangaScreen() {
+        // Going through the main activity would reset the navigation back stack the manga screen was opened on
+        if (intent.getBooleanExtra(EXTRA_FROM_MANGA_SCREEN, false)) {
+            finish()
+            return
+        }
         viewModel.manga?.id?.let { id ->
             startActivity(
                 Intent(this, MainActivity::class.java).apply {
