@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.manga.model.Manga
+import tachiyomi.domain.manga.model.MangaTitle
 import tachiyomi.domain.manga.repository.MangaRepository
 
 @Inject
@@ -21,9 +22,9 @@ class GetManga(
         }
     }
 
-    suspend fun awaitByTitle(title: String): List<Manga>? {
+    suspend fun awaitTitles(): List<MangaTitle>? {
         return try {
-            mangaRepository.getMangaByTitle(title)
+            mangaRepository.getMangaTitles()
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e)
             null

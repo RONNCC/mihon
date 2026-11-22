@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import tachiyomi.domain.library.model.LibraryManga
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.manga.model.MangaRemoteUpdate
+import tachiyomi.domain.manga.model.MangaTitle
 import tachiyomi.domain.manga.model.MangaUpdate
 import tachiyomi.domain.manga.model.MangaWithChapterCount
 
@@ -17,7 +18,7 @@ interface MangaRepository {
 
     fun getMangaByUrlAndSourceIdAsFlow(url: String, sourceId: Long): Flow<Manga?>
 
-    suspend fun getMangaByTitle(title: String): List<Manga>
+    suspend fun getMangaTitles(): List<MangaTitle>
 
     suspend fun getFavorites(): List<Manga>
 
