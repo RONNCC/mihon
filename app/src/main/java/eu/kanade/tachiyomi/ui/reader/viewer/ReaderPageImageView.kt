@@ -158,6 +158,8 @@ open class ReaderPageImageView @JvmOverloads constructor(
             scale == minScale
         ) {
             handler?.postDelayed(500) {
+                // Recycled since, as the pager does with pages it drops
+                if (!isReady) return@postDelayed
                 val point = when (config!!.zoomStartPosition) {
                     ZoomStartPosition.LEFT -> if (forward) PointF(0F, 0F) else PointF(sWidth.toFloat(), 0F)
                     ZoomStartPosition.RIGHT -> if (forward) PointF(sWidth.toFloat(), 0F) else PointF(0F, 0F)
