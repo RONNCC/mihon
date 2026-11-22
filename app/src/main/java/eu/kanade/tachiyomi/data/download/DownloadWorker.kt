@@ -64,33 +64,49 @@ class DownloadWorker(context: Context, workerParams: WorkerParameters) : Corouti
     }
 
     override suspend fun doWork(): Result {
-        var networkIssue = networkIssue()
-        if (networkIssue != null) {
-            // A resume starts as soon as its network constraint is met, which can be a moment before the
-            // connection validates
-            if (inputData.getBoolean(KEY_RESUME, false)) return Result.retry()
+        downloader.awaitRestore()
+        // Pausing cancels the worker, so one that runs was asked to download
+        downloader.isPaused = false
 
-            downloader.stop(applicationContext.getString(networkIssue.message))
+        val startIssue = networkIssue()
+        if (startIssue != null) {
+            if (inputData.getBoolean(KEY_RESUME, false)) {
+                // A resume starts as soon as its network constraint is met, which can be a moment before the
+                // connection validates. Unmetered isn't Wi-Fi, so waiting on that mismatch would never end.
+                return if (startIssue == NetworkIssue.NotWifi || downloader.queueState.value.isEmpty()) {
+                    Result.success()
+                } else {
+                    Result.retry()
+                }
+            }
+
+            downloader.stop(applicationContext.getString(startIssue.message))
             resumeWhenOnline()
             return Result.success()
         }
 
         if (!downloader.start()) return Result.failure()
 
+        var lostNetwork: NetworkIssue? = null
         try {
             setForegroundSafely()
 
-            networkIssue = awaitNetworkIssue({ downloader.isRunning }, { networkIssue() })
+            lostNetwork = watchNetwork(
+                isRunning = { downloader.isRunning },
+                currentIssue = { networkIssue() },
+                suspendDownloads = { downloader.suspendDownloads() },
+                resumeDownloads = { downloader.start() },
+            )
         } finally {
             // Stopped by WorkManager means already canceled, and taking the lock would then throw instead of stopping
-            if (downloader.isRunning && (networkIssue != null || isStopped)) {
-                withContext(NonCancellable) {
-                    downloader.stop(networkIssue?.let { applicationContext.getString(it.message) })
-                }
+            if (downloader.isRunning && isStopped) {
+                withContext(NonCancellable) { downloader.stop() }
             }
         }
 
-        if (networkIssue != null) resumeWhenOnline()
+        lostNetwork?.let { downloader.stop(applicationContext.getString(it.message)) }
+        // Offline, the chapters can fail before the first check notices, so the connection is checked again
+        if (lostNetwork != null || networkIssue() != null) resumeWhenOnline()
         return Result.success()
     }
 
@@ -154,7 +170,7 @@ class DownloadWorker(context: Context, workerParams: WorkerParameters) : Corouti
 
 /**
  * What keeps the downloader from running. A connection that drops for a few seconds, as it does when switching
- * between Wi-Fi and mobile data, is tolerated for [graceSeconds] before the downloads are stopped.
+ * between Wi-Fi and mobile data, is waited out for [graceSeconds] before the user is told.
  */
 internal enum class NetworkIssue(@StringRes val message: Int, val graceSeconds: Int) {
     Offline(R.string.download_notifier_no_network, 10),
@@ -162,17 +178,38 @@ internal enum class NetworkIssue(@StringRes val message: Int, val graceSeconds: 
 }
 
 /**
- * Checks once a second for a network issue while the downloader runs.
+ * Checks once a second for a network issue while the downloader runs. At the first one the downloads are
+ * suspended, so the chapters don't fail one after another while offline, and they're resumed if the network is
+ * back within the issue's grace period.
  *
  * @return the issue that lasted past its grace period, or null once the downloader stopped.
  */
-internal suspend fun awaitNetworkIssue(isRunning: () -> Boolean, currentIssue: () -> NetworkIssue?): NetworkIssue? {
+internal suspend fun watchNetwork(
+    isRunning: () -> Boolean,
+    currentIssue: () -> NetworkIssue?,
+    suspendDownloads: suspend () -> Unit,
+    resumeDownloads: suspend () -> Unit,
+): NetworkIssue? {
     var consecutiveSeconds = 0
-    while (isRunning()) {
+    var isSuspended = false
+    while (isSuspended || isRunning()) {
         delay(1.seconds)
         val issue = currentIssue()
-        consecutiveSeconds = if (issue == null) 0 else consecutiveSeconds + 1
-        if (issue != null && consecutiveSeconds > issue.graceSeconds) return issue
+        if (issue == null) {
+            consecutiveSeconds = 0
+            if (isSuspended) {
+                isSuspended = false
+                resumeDownloads()
+            }
+            continue
+        }
+
+        consecutiveSeconds++
+        if (!isSuspended) {
+            isSuspended = true
+            suspendDownloads()
+        }
+        if (consecutiveSeconds > issue.graceSeconds) return issue
     }
     return null
 }

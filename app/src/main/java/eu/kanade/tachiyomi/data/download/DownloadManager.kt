@@ -82,6 +82,7 @@ class DownloadManager(
     suspend fun clearQueue() {
         downloader.clearQueue()
         downloader.stop()
+        DownloadWorker.stop(context)
     }
 
     /**

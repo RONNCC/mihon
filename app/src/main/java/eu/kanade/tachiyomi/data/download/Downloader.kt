@@ -110,15 +110,22 @@ class Downloader(
         get() = downloaderJob?.isActive ?: false
 
     /**
-     * Whether the user paused the downloader. Queuing chapters doesn't start it again until it's started.
+     * Whether the downloads are held back until they're started, either by the user or because they were queued
+     * before the app was killed. Queuing chapters doesn't start them while it's set.
      */
     @Volatile
     var isPaused: Boolean = false
 
     // The restore waits for the sources to load, so a start has to wait for it too or it finds the queue empty
     private val restoreJob = scope.launch(Dispatchers.Main, CoroutineStart.UNDISPATCHED) {
-        addAllToQueue(withContext(Dispatchers.IO) { store.restore() })
+        val restored = withContext(Dispatchers.IO) { store.restore() }
+        addAllToQueue(restored)
+        // Whether the user had paused isn't known anymore. A worker that WorkManager reruns or has waiting for the
+        // network starts the queue, and queuing chapters shouldn't set off one left behind by a pause.
+        if (restored.isNotEmpty() && !isRunning) isPaused = true
     }
+
+    suspend fun awaitRestore() = restoreJob.join()
 
     /**
      * Starts the downloader. It doesn't do anything if it's already running or there isn't anything
@@ -127,9 +134,15 @@ class Downloader(
      * @return true if the downloader is started, false otherwise.
      */
     suspend fun start(): Boolean {
-        restoreJob.join()
+        awaitRestore()
         return lock.withLock { startLocked() }
     }
+
+    /**
+     * Halts the downloads without a notification, keeping them queued for [start], for a connection that may be
+     * back in a moment.
+     */
+    suspend fun suspendDownloads() = lock.withLock { pauseLocked() }
 
     /**
      * Stops the downloader.
@@ -835,14 +848,15 @@ class Downloader(
         // Leaves the running downloads alone when none of them is affected
         if (queueState.value.none(predicate)) return
 
+        val isWorking = queueState.value.any { predicate(it) && it.status == Download.State.DOWNLOADING }
         var canceledJob: Job? = null
         editQueue {
             canceledJob = downloaderJob
             removeFromQueueIf(predicate)
         }
         // A canceled job can still be moving its chapter into place, which would bring back what the caller
-        // deletes next
-        canceledJob?.join()
+        // deletes next. Only the downloads being worked on can be in that state.
+        if (isWorking) canceledJob?.join()
     }
 
     private suspend inline fun editQueue(edit: () -> Unit) = lock.withLock {

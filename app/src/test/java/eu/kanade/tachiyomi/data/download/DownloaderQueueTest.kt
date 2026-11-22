@@ -108,4 +108,30 @@ class DownloaderQueueTest {
         assertFalse(downloader.isRunning)
         assertTrue(downloader.queueState.value.isEmpty())
     }
+
+    @Test
+    fun `a restored queue is held until it is started`() = runTest {
+        coEvery { store.restore() } returns listOf(Download(source, manga, chapter(10)))
+        val downloader = downloader(backgroundScope)
+        downloader.awaitRestore()
+
+        assertFalse(downloader.queueChapters(manga, listOf(chapter(11)), autoStart = true))
+        assertTrue(downloader.start())
+        assertFalse(downloader.isPaused)
+    }
+
+    @Test
+    fun `suspending keeps the chapters queued and the downloader unpaused`() = runTest {
+        val storage = CompletableDeferred<Nothing>()
+        coEvery { provider.getMangaDir(any(), any()) } coAnswers { storage.await() }
+        val downloader = downloader(backgroundScope)
+        downloader.queueChapters(manga, listOf(chapter(10)), autoStart = false)
+        assertTrue(downloader.start())
+
+        downloader.suspendDownloads()
+
+        assertFalse(downloader.isRunning)
+        assertFalse(downloader.isPaused)
+        assertEquals(listOf(Download.State.QUEUE), downloader.queueState.value.map { it.status })
+    }
 }
