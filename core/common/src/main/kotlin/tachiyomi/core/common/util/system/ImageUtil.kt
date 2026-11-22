@@ -29,8 +29,10 @@ import java.io.FilterInputStream
 import java.io.InputStream
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.sqrt
 
 object ImageUtil {
 
@@ -209,14 +211,11 @@ object ImageUtil {
      */
     fun chooseBackground(context: Context, imageStream: InputStream): Drawable {
         val image = try {
-            ImageDecoder.open(imageStream).use { it.decodeNext() to it.isHdr }.let { (res, hdr) ->
-                res.use {
-                    val config = if (hdr) Bitmap.Config.RGBA_F16 else Bitmap.Config.ARGB_8888
-                    createBitmap(res.width, res.height, config).also { bitmap ->
-                        res.image.rewind()
-                        bitmap.copyPixelsFromBuffer(res.image)
-                    }
-                }
+            ImageDecoder.open(imageStream).use { dec ->
+                // A few dozen pixels are read, so a shrunk copy does instead of a second full size page
+                val pixels = dec.width.toDouble() * dec.height
+                val sampleSize = ceil(sqrt(pixels / BACKGROUND_PIXELS)).toInt().coerceAtLeast(1)
+                dec.decodeToBitmap(null, sampleSize)
             }
         } catch (e: Exception) {
             logcat(LogPriority.ERROR) { "chooseBackground: ${e.message}" }
@@ -455,3 +454,6 @@ object ImageUtil {
         return ImageDecoder.open(imageSource.inputStream()).use { it.decodeToBitmap() }
     }
 }
+
+// Shrinks a page to about this many pixels (16 MB of RGBA) to choose its background from
+private const val BACKGROUND_PIXELS = 4_000_000.0
