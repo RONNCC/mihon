@@ -126,12 +126,16 @@ open class ReaderPageImageView @JvmOverloads constructor(
         with(pageView as? SubsamplingScaleImageView) {
             if (this == null) return
             if (isReady) {
+                // Going back, a page taller than the screen is read from its end
+                if (!forward && config?.zoomStartPosition == ZoomStartPosition.CENTER) {
+                    setScaleAndCenter(scale, centerStart(forward = false))
+                }
                 landscapeZoom(forward)
             } else {
                 setOnImageEventListener(
                     object : SubsamplingScaleImageView.DefaultOnImageEventListener() {
                         override fun onReady() {
-                            setupZoom(config)
+                            setupZoom(config, forward)
                             landscapeZoom(forward)
                             this@ReaderPageImageView.onImageLoaded()
                         }
@@ -287,7 +291,7 @@ open class ReaderPageImageView @JvmOverloads constructor(
         applyPageColorFilter()
     }
 
-    private fun SubsamplingScaleImageView.setupZoom(config: Config?) {
+    private fun SubsamplingScaleImageView.setupZoom(config: Config?, forward: Boolean = true) {
         // 5x zoom
         maxScale = scale * MAX_ZOOM_SCALE
         setDoubleTapZoomScale(scale * 2)
@@ -295,9 +299,14 @@ open class ReaderPageImageView @JvmOverloads constructor(
         when (config?.zoomStartPosition) {
             ZoomStartPosition.LEFT -> setScaleAndCenter(scale, PointF(0F, 0F))
             ZoomStartPosition.RIGHT -> setScaleAndCenter(scale, PointF(sWidth.toFloat(), 0F))
-            ZoomStartPosition.CENTER -> setScaleAndCenter(scale, center)
+            ZoomStartPosition.CENTER -> setScaleAndCenter(scale, centerStart(forward))
             null -> {}
         }
+    }
+
+    /** Centred across, and at the top of a page taller than the screen, or at its bottom going back. */
+    private fun SubsamplingScaleImageView.centerStart(forward: Boolean): PointF {
+        return PointF(sWidth / 2F, if (forward) 0F else sHeight.toFloat())
     }
 
     private fun setNonAnimatedImage(
