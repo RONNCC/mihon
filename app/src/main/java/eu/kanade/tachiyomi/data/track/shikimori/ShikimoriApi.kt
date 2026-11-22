@@ -221,10 +221,11 @@ class ShikimoriApi(
         private const val CLIENT_ID = "PB9dq8DzI405s7wdtwTdirYqHiyVMh--djnP7lBUqSA"
         private const val CLIENT_SECRET = "NajpZcOBKB9sJtgNcejf8OB9jBN1OYYoo-k4h2WWZus"
 
-        fun authUrl(): Uri = LOGIN_URL.toUri().buildUpon()
+        fun authUrl(state: String): Uri = LOGIN_URL.toUri().buildUpon()
             .appendQueryParameter("client_id", CLIENT_ID)
             .appendQueryParameter("redirect_uri", REDIRECT_URL)
             .appendQueryParameter("response_type", "code")
+            .appendQueryParameter("state", state)
             .build()
 
         fun refreshTokenRequest(token: String) = POST(

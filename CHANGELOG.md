@@ -59,6 +59,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Fix Hikka being logged out by transient errors
 - Fix library updates hanging on a source that keeps failing to connect, reporting a cancelled update as failed, and not notifying or downloading the chapters found before a stopped update
 - Fix the last library update time being recorded before the update finishes, and metadata refreshes that can't be cancelled, overlap library updates or fail to start silently
+- Fix links opened from other apps or sites logging out of a tracker or logging in to someone else's tracker account
 
 ## [v0.21.3] - 2026-10-26
 ### Added

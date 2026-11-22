@@ -33,8 +33,6 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.math.RoundingMode
-import java.security.SecureRandom
-import java.util.Base64
 import kotlin.time.Duration.Companion.minutes
 import tachiyomi.domain.track.model.Track as DomainTrack
 
@@ -263,8 +261,6 @@ class ComickApi(
         }
     }
 
-    fun verifyOAuthState(state: String): Boolean = state == oauthStateParam
-
     companion object {
         private const val CLIENT_ID = "SGrUojDvbgqfhSCQbwfCjUPIccYMJdBH"
         private const val REDIRECT_URI = "app.mihon://comick-auth"
@@ -277,15 +273,14 @@ class ComickApi(
         private const val RESOURCE_URL = "$API_BASE_URL/integrations/v1"
 
         private var codeVerifier: String = ""
-        private var oauthStateParam: String = ""
 
-        fun authUrl(): Uri = "$OAUTH_URL/authorize".toUri().buildUpon()
+        fun authUrl(state: String): Uri = "$OAUTH_URL/authorize".toUri().buildUpon()
             .appendQueryParameter("response_type", "code")
             .appendQueryParameter("client_id", CLIENT_ID)
             .appendQueryParameter("redirect_uri", REDIRECT_URI)
             .appendQueryParameter("scope", SCOPES)
             .appendQueryParameter("resource", RESOURCE_URL)
-            .appendQueryParameter("state", getOAuthStateParam())
+            .appendQueryParameter("state", state)
             .appendQueryParameter("code_challenge", getPkceS256ChallengeCode())
             .appendQueryParameter("code_challenge_method", "S256")
             .build()
@@ -303,16 +298,6 @@ class ComickApi(
                 jsonMime.toString(),
             ),
         )
-
-        private fun getOAuthStateParam(): String {
-            val bytes = ByteArray(16)
-            SecureRandom().nextBytes(bytes)
-            oauthStateParam = Base64.getUrlEncoder()
-                .withoutPadding()
-                .encodeToString(bytes)
-
-            return oauthStateParam
-        }
 
         private fun getPkceS256ChallengeCode(): String {
             // Comick requires an actually conformant PKCE process, unlike MAL

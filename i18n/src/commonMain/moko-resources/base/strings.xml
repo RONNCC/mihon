@@ -722,6 +722,7 @@
     <string name="login">Login</string>
     <string name="logging_in">Logging in…</string>
     <string name="login_success">Logged in</string>
+    <string name="login_failed">Could not log in</string>
     <string name="logout_title">Log out from %1$s?</string>
     <string name="logout">Log out</string>
     <string name="logout_success">You are now logged out</string>

@@ -46,6 +46,11 @@ class TrackPreferences(
 
     fun trackToken(tracker: Tracker) = preferenceStore.getString(Preference.privateKey("track_token_${tracker.id}"), "")
 
+    fun oauthLoginState(tracker: Tracker) = preferenceStore.getString(
+        Preference.appStateKey("oauth_login_state_${tracker.id}"),
+        "",
+    )
+
     val anilistScoreType: Preference<String> = preferenceStore.getString("anilist_score_type", Anilist.POINT_10)
 
     val kitsuScoreType: Preference<String> = preferenceStore.getString("kitsu_score_type", Kitsu.RATING_ADVANCED)

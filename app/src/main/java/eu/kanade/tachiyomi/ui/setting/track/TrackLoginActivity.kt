@@ -3,13 +3,14 @@ package eu.kanade.tachiyomi.ui.setting.track
 import android.net.Uri
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
+import eu.kanade.tachiyomi.data.track.BaseTracker
 import eu.kanade.tachiyomi.data.track.comick.ComickMissingScopesException
+import eu.kanade.tachiyomi.data.track.hikka.Hikka
 import eu.kanade.tachiyomi.util.system.toast
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import logcat.LogPriority
 import tachiyomi.core.common.util.system.logcat
+import tachiyomi.i18n.MR
 
 class TrackLoginActivity : BaseOAuthLoginActivity() {
 
@@ -26,97 +27,54 @@ class TrackLoginActivity : BaseOAuthLoginActivity() {
                 parts[0] to parts.getOrNull(1)
             }
             .orEmpty()
+        val state = data["state"]
 
         lifecycleScope.launch {
-            when (uri.host) {
-                "anilist-auth" -> handleAniList(data["access_token"])
-                "comick-auth" -> handleComick(data["code"], data["state"])
-                "bangumi-auth" -> handleBangumi(data["code"])
-                "mangabaka-auth" -> handleMangaBaka(data["code"], data["state"])
-                "myanimelist-auth" -> handleMyAnimeList(data["code"])
-                "shikimori-auth" -> handleShikimori(data["code"])
-                "hikka-auth" -> handleHikka(data["reference"])
+            with(trackerManager) {
+                when (uri.host) {
+                    "anilist-auth" -> login(aniList, data["access_token"], state) { aniList.login(it) }
+                    "comick-auth" -> login(comick, data["code"], state) { loginComick(it) }
+                    "bangumi-auth" -> login(bangumi, data["code"], state) { bangumi.login(it) }
+                    "mangabaka-auth" -> login(mangaBaka, data["code"], state) { mangaBaka.login(it) }
+                    "myanimelist-auth" -> login(myAnimeList, data["code"], state) { myAnimeList.login(it) }
+                    "shikimori-auth" -> login(shikimori, data["code"], state) { shikimori.login(it) }
+                    "hikka-auth" -> login(hikka, data["reference"], state) { hikka.login(it) }
+                }
             }
             returnToSettings()
         }
     }
 
-    private suspend fun handleAniList(accessToken: String?) {
-        if (accessToken != null) {
-            trackerManager.aniList.login(accessToken)
-        } else {
-            trackerManager.aniList.logout()
-        }
-    }
-
-    private suspend fun handleBangumi(code: String?) {
+    /**
+     * Logs in with [code] if it answers the login the user started. Anything can open this activity, so other
+     * results, like a denied login, are ignored rather than logging out.
+     */
+    private suspend fun login(
+        tracker: BaseTracker,
+        code: String?,
+        state: String?,
+        loginWith: suspend (String) -> Unit,
+    ) {
         if (code != null) {
-            trackerManager.bangumi.login(code)
-        } else {
-            trackerManager.bangumi.logout()
-        }
-    }
-
-    private suspend fun handleComick(code: String?, state: String?) {
-        if (state == null) {
-            logcat(LogPriority.WARN) { "Did not receive state parameter from Comick OAuth" }
-            return
-        }
-        if (code != null) {
-            if (!trackerManager.comick.verifyOAuthState(state)) {
-                logcat(LogPriority.WARN) { "Received wrong OAuth state back from Comick" }
+            val answersPendingLogin = when (tracker) {
+                // Hikka doesn't send the state back
+                is Hikka -> tracker.oauthLoginState.finishWithoutState()
+                else -> tracker.oauthLoginState.finish(state)
+            }
+            if (answersPendingLogin) {
+                loginWith(code)
                 return
             }
-            try {
-                trackerManager.comick.login(code)
-            } catch (e: ComickMissingScopesException) {
-                withContext(Dispatchers.Main) {
-                    this@TrackLoginActivity.toast(e.message, Toast.LENGTH_LONG)
-                }
-                return
-            }
-        } else {
-            trackerManager.comick.logout()
         }
+        logcat(LogPriority.WARN) { "Ignored a ${tracker.name} login result without a code or a pending login" }
+        toast(MR.strings.login_failed)
     }
 
-    private suspend fun handleMangaBaka(code: String?, state: String?) {
-        if (state == null) {
-            logcat(LogPriority.WARN) { "Did not receive state parameter from MangaBaka OAuth" }
-            return
-        }
-        if (code != null) {
-            if (!trackerManager.mangaBaka.verifyOAuthState(state)) {
-                logcat(LogPriority.WARN) { "Received wrong OAuth state back from MangaBaka" }
-                return
-            }
-            trackerManager.mangaBaka.login(code)
-        } else {
-            trackerManager.mangaBaka.logout()
-        }
-    }
-
-    private suspend fun handleMyAnimeList(code: String?) {
-        if (code != null) {
-            trackerManager.myAnimeList.login(code)
-        } else {
-            trackerManager.myAnimeList.logout()
-        }
-    }
-
-    private suspend fun handleShikimori(code: String?) {
-        if (code != null) {
-            trackerManager.shikimori.login(code)
-        } else {
-            trackerManager.shikimori.logout()
-        }
-    }
-
-    private suspend fun handleHikka(reference: String?) {
-        if (reference != null) {
-            trackerManager.hikka.login(reference)
-        } else {
-            trackerManager.hikka.logout()
+    private suspend fun loginComick(code: String) {
+        try {
+            trackerManager.comick.login(code)
+        } catch (e: ComickMissingScopesException) {
+            toast(e.message, Toast.LENGTH_LONG)
         }
     }
 }

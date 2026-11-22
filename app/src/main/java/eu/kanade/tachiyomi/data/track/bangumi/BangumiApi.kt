@@ -189,11 +189,12 @@ class BangumiApi(
 
         private const val APP_JSON = "application/json"
 
-        fun authUrl(): Uri =
+        fun authUrl(state: String): Uri =
             LOGIN_URL.toUri().buildUpon()
                 .appendQueryParameter("client_id", CLIENT_ID)
                 .appendQueryParameter("response_type", "code")
                 .appendQueryParameter("redirect_uri", REDIRECT_URL)
+                .appendQueryParameter("state", state)
                 .build()
 
         fun refreshTokenRequest(token: String) = POST(
