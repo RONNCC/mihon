@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.data.coil
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import androidx.core.graphics.createBitmap
 import ca.mpreg.imagedecoder.ImageDecoder
@@ -104,25 +105,16 @@ class ImageDecoder(private val resources: ImageSource, private val options: Opti
      * [MAX_PAGE_BYTES]. They are never narrower than the view, so the page stays sharp unzoomed.
      */
     private suspend fun decodeStrips(): DecodeResult = stripDecodes.withPermit {
-        val (frame, isHdr, widths) = resources.source().use {
-            ImageDecoder.open(it.inputStream()).use { dec ->
-                val bytesPerPixel = if (dec.isHdr) 8 else 4
-                val viewWidth = options.size.widthPx(options.scale) { dec.width }
-                val sampleSize = DecodeUtils.calculateInSampleSize(
-                    srcWidth = dec.width,
-                    srcHeight = dec.height,
-                    dstWidth = viewWidth,
-                    dstHeight = options.size.heightPx(options.scale) { dec.height },
-                    scale = options.scale,
-                )
-                val budgetWidth = sqrt(MAX_PAGE_BYTES.toDouble() / bytesPerPixel * dec.width / dec.height).toInt()
-                val stripWidth = maxOf(viewWidth, min(dec.width / sampleSize, budgetWidth))
-                    // Older GPUs can't draw a texture wider than this
-                    .coerceAtMost(MAX_STRIP_WIDTH)
-                    .coerceIn(1, dec.width)
-                // ceil(width / decodeSample) >= stripWidth: strips only scale down
-                val decodeSample = (dec.width / stripWidth).coerceAtLeast(1)
-                Triple(dec.decode(null, decodeSample), dec.isHdr, stripWidth to dec.width)
+        val (frame, isHdr, widths) = resources.source().use { source ->
+            try {
+                ImageDecoder.open(source.peek().inputStream()).use { dec ->
+                    val (stripWidth, decodeSample) = stripLayout(dec.width, dec.height, if (dec.isHdr) 8 else 4)
+                    Triple(dec.decode(null, decodeSample), dec.isHdr, stripWidth to dec.width)
+                }
+            } catch (e: ImageDecoder.DecodeException) {
+                if (e is ImageDecoder.OutOfMemoryException) throw e
+                // Android's decoder takes some PNG and JPEG files this one rejects
+                return@withPermit decodeAndroidStrips(source) ?: throw e
             }
         }
         val (stripWidth, pageWidth) = widths
@@ -157,6 +149,53 @@ class ImageDecoder(private val resources: ImageSource, private val options: Opti
             band.recycle()
             DecodeResult(image = StripsImage(strips), isSampled = stripWidth < pageWidth)
         }
+    }
+
+    /** As the frame's strips, through a whole Java bitmap and without EXIF orientation, or null if Android can't. */
+    private fun decodeAndroidStrips(source: BufferedSource): DecodeResult? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeStream(source.peek().inputStream(), null, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        val (stripWidth, decodeSample) = stripLayout(bounds.outWidth, bounds.outHeight, bytesPerPixel = 4)
+        val decodeOptions = BitmapFactory.Options().apply {
+            inSampleSize = decodeSample
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
+        val page = BitmapFactory.decodeStream(source.inputStream(), null, decodeOptions) ?: return null
+        // Android may round the sample size down, leaving the page wider than asked
+        val scale = stripWidth.toFloat() / page.width
+        val stripRows = (STRIP_BYTES / (stripWidth * 4)).coerceAtLeast(1)
+        val bandRows = (stripRows / scale).toInt().coerceIn(1, page.height)
+        val matrix = Matrix().apply { setScale(scale, scale) }
+        val strips = (0..<page.height step bandRows).map { top ->
+            val strip = Bitmap.createBitmap(page, 0, top, page.width, min(bandRows, page.height - top), matrix, true)
+            // The page itself when it is one band at full width, else mutable
+            strip.copy(Bitmap.Config.ARGB_8888, false).also { if (strip !== page) strip.recycle() }
+        }
+        page.recycle()
+        return DecodeResult(image = StripsImage(strips), isSampled = stripWidth < bounds.outWidth)
+    }
+
+    /**
+     * The width of the strips of a [width] by [height] page, and the whole fraction to decode it at for them: the
+     * largest still at least the strip width.
+     */
+    private fun stripLayout(width: Int, height: Int, bytesPerPixel: Int): Pair<Int, Int> {
+        val viewWidth = options.size.widthPx(options.scale) { width }
+        val sampleSize = DecodeUtils.calculateInSampleSize(
+            srcWidth = width,
+            srcHeight = height,
+            dstWidth = viewWidth,
+            dstHeight = options.size.heightPx(options.scale) { height },
+            scale = options.scale,
+        )
+        val budgetWidth = sqrt(MAX_PAGE_BYTES.toDouble() / bytesPerPixel * width / height).toInt()
+        val stripWidth = maxOf(viewWidth, min(width / sampleSize, budgetWidth))
+            // Older GPUs can't draw a texture wider than this
+            .coerceAtMost(MAX_STRIP_WIDTH)
+            .coerceIn(1, width)
+        // ceil(width / decodeSample) >= stripWidth: strips only scale down
+        return stripWidth to (width / stripWidth).coerceAtLeast(1)
     }
 
     class Factory : Decoder.Factory {
