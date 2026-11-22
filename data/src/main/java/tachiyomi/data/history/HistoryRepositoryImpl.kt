@@ -24,9 +24,9 @@ class HistoryRepositoryImpl(
     private val database: Database,
 ) : HistoryRepository {
 
-    override fun getHistory(query: String): Flow<List<HistoryWithRelations>> {
+    override fun getHistory(): Flow<List<HistoryWithRelations>> {
         return database.historyViewQueries
-            .history(query, HistoryMapper::mapHistoryWithRelations)
+            .history(HistoryMapper::mapHistoryWithRelations)
             .subscribeToList()
     }
 

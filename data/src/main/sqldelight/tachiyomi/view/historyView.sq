@@ -41,7 +41,6 @@ readDuration
 FROM historyView
 WHERE historyView.readAt IS NOT NULL
 AND maxReadAtChapterId = historyView.chapterId
-AND lower(historyView.title) LIKE ('%' || :query || '%')
 ORDER BY readAt DESC;
 
 getLatestHistory:

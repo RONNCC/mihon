@@ -11,6 +11,14 @@ class GetDuplicateLibraryManga(
 ) {
 
     suspend operator fun invoke(manga: Manga): List<MangaWithChapterCount> {
-        return mangaRepository.getDuplicateLibraryManga(manga.id, manga.title.lowercase())
+        // Matched here since SQLite only folds the case of ASCII letters and treats "%" and "_" in a title as wildcards
+        val titleMatchIds = if (manga.title.isBlank()) {
+            emptyList()
+        } else {
+            mangaRepository.getFavoriteTitles()
+                .filter { it.id != manga.id && it.title.contains(manga.title, ignoreCase = true) }
+                .map { it.id }
+        }
+        return mangaRepository.getDuplicateLibraryManga(manga.id, titleMatchIds)
     }
 }

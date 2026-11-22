@@ -20,6 +20,8 @@ interface MangaRepository {
 
     suspend fun getMangaTitles(): List<MangaTitle>
 
+    suspend fun getFavoriteTitles(): List<MangaTitle>
+
     suspend fun getFavorites(): List<Manga>
 
     suspend fun getReadMangaNotInLibrary(): List<Manga>
@@ -30,7 +32,7 @@ interface MangaRepository {
 
     fun getFavoritesBySourceId(sourceId: Long): Flow<List<Manga>>
 
-    suspend fun getDuplicateLibraryManga(id: Long, title: String): List<MangaWithChapterCount>
+    suspend fun getDuplicateLibraryManga(id: Long, titleMatchIds: List<Long>): List<MangaWithChapterCount>
 
     suspend fun getUpcomingManga(
         statuses: Set<Long>,
