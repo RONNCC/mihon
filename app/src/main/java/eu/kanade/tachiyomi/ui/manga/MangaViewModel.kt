@@ -1116,11 +1116,12 @@ class MangaViewModel(
 
             val missingChapterCount by lazy {
                 if (hideMissingChapters) return@lazy 0
-                processedChapters.fastMap { it.chapter.chapterNumber }.missingChaptersCount()
+                chapters.fastMap { it.chapter.chapterNumber }.missingChaptersCount()
             }
 
             val chapterListItems by lazy {
-                if (hideMissingChapters) {
+                // A view filter hides chapters that aren't missing, so the gaps between the shown ones would be wrong
+                if (hideMissingChapters || manga.chaptersFiltered(downloadedOnly)) {
                     return@lazy processedChapters
                 }
 
