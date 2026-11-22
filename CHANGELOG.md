@@ -66,6 +66,15 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Fix deleting a single downloaded chapter of an uninstalled extension doing nothing ([#2588](https://github.com/mihonapp/mihon/issues/2588))
 - Fix the back button not clearing the history search ([#2924](https://github.com/mihonapp/mihon/issues/2924))
 - Fix tapping the title in the reader resetting the browse navigation back stack ([#2563](https://github.com/mihonapp/mihon/issues/2563))
+- Fix chapters hidden by a filter being counted as missing in the chapter list ([#35](https://github.com/mihonapp/mihon/issues/35))
+- Fix global search keeping the scroll position of the previous search in each source ([#205](https://github.com/mihonapp/mihon/issues/205))
+- Fix the app theme and pure black settings not applying after a restore until the app is restarted ([#252](https://github.com/mihonapp/mihon/issues/252))
+- Fix the keyboard learning from what is typed in text fields in incognito mode ([#316](https://github.com/mihonapp/mihon/issues/316))
+- Fix the tracker date picker being cut off in landscape ([#824](https://github.com/mihonapp/mihon/issues/824))
+- Fix the secure screen setting for incognito mode ignoring the incognito mode of the source being browsed ([#2051](https://github.com/mihonapp/mihon/issues/2051))
+- Fix a crash on covers of AVIF, JPEG XL, HEIF or JPEG 2000 too large to draw ([#1224](https://github.com/mihonapp/mihon/issues/1224))
+- Fix the updates widget failing to draw when its size can't be read, or when preparing its covers fails ([#491](https://github.com/mihonapp/mihon/issues/491))
+- Fix picking a custom cover failing on some devices ([#1376](https://github.com/mihonapp/mihon/issues/1376))
 
 ## [v0.21.3] - 2026-10-26
 ### Added
