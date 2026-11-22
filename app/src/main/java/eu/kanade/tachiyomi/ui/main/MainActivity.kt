@@ -281,7 +281,10 @@ class MainActivity : BaseActivity() {
                 LaunchedEffect(currentRoute) {
                     (currentRoute as? BrowseSourceRoute)?.sourceId
                         .let(getIncognitoState::subscribe)
-                        .collectLatest { incognito = it }
+                        .collectLatest {
+                            incognito = it
+                            setSourceIncognito(it)
+                        }
                 }
 
                 val scaffoldInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)

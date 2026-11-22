@@ -15,6 +15,7 @@ import eu.kanade.tachiyomi.ui.security.UnlockActivity
 import eu.kanade.tachiyomi.util.system.AuthenticatorUtil
 import eu.kanade.tachiyomi.util.system.AuthenticatorUtil.isAuthenticationSupported
 import eu.kanade.tachiyomi.util.view.setSecureScreen
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -22,6 +23,9 @@ import mihon.app.di.appGraph
 
 interface SecureActivityDelegate {
     fun registerSecureActivity(activity: AppCompatActivity)
+
+    /** Sets whether the source being used is in incognito mode on its own, for the incognito secure screen mode. */
+    fun setSourceIncognito(incognito: Boolean)
 
     companion object {
         /**
@@ -76,6 +80,8 @@ class SecureActivityDelegateImpl : SecureActivityDelegate, DefaultLifecycleObser
 
     private lateinit var activity: AppCompatActivity
 
+    private val sourceIncognito = MutableStateFlow(false)
+
     @Inject private lateinit var preferences: BasePreferences
 
     @Inject private lateinit var securityPreferences: SecurityPreferences
@@ -83,6 +89,10 @@ class SecureActivityDelegateImpl : SecureActivityDelegate, DefaultLifecycleObser
     override fun registerSecureActivity(activity: AppCompatActivity) {
         this.activity = activity
         activity.lifecycle.addObserver(this)
+    }
+
+    override fun setSourceIncognito(incognito: Boolean) {
+        sourceIncognito.value = incognito
     }
 
     override fun onCreate(owner: LifecycleOwner) {
@@ -101,7 +111,9 @@ class SecureActivityDelegateImpl : SecureActivityDelegate, DefaultLifecycleObser
 
     private fun setSecureScreen() {
         val secureScreenFlow = securityPreferences.secureScreen.changes()
-        val incognitoModeFlow = preferences.incognitoMode.changes()
+        val incognitoModeFlow = combine(preferences.incognitoMode.changes(), sourceIncognito) { global, source ->
+            global || source
+        }
         combine(secureScreenFlow, incognitoModeFlow) { secureScreen, incognitoMode ->
             secureScreen == SecurityPreferences.SecureScreenMode.ALWAYS ||
                 (secureScreen == SecurityPreferences.SecureScreenMode.INCOGNITO && incognitoMode)
