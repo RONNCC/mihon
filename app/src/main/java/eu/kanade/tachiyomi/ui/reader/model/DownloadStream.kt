@@ -14,10 +14,13 @@ class DownloadStream {
     private var done = false
     private var error: Throwable? = null
 
-    /** Presizes for [bytes], e.g. Content-Length; ignored if implausible. */
+    /** Presizes for [bytes], e.g. Content-Length; ignored if implausible. Over [MAX_BYTES], drops it at once. */
     fun reserve(bytes: Long) {
         synchronized(lock) {
-            if (error == null && bytes > data.size && bytes <= MAX_BYTES) {
+            if (error == null && bytes > MAX_BYTES) {
+                // Rather than buffer up to the limit only to drop it there
+                drop("Download too large to stream")
+            } else if (error == null && bytes > data.size) {
                 try {
                     data = data.copyOf(bytes.toInt())
                 } catch (e: OutOfMemoryError) {
