@@ -175,7 +175,7 @@ class NotificationReceiver : BroadcastReceiver() {
                         if (manga != null) {
                             val source = sourceManager.getOrStub(manga.source)
                             // Deletion filtering (excluded categories) relies on the new read state
-                            downloadManager.deleteChapters(listOf(it.copy(read = true)), manga, source)
+                            downloadManager.deleteReadChapters(listOf(it.copy(read = true)), manga, source)
                         }
                     }
                     ChapterUpdate(it.id) { read = true }

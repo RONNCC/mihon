@@ -66,7 +66,8 @@ class SuwayomiApi(
             .query(
                 SuwayomiGetMangaUnreadChaptersQuery(
                     mangaId = mangaId.toInt(),
-                    chapterNumber = track.last_chapter_read,
+                    // The server stores chapter numbers as floats, so 2.1 reads back as 2.0999999
+                    chapterNumber = track.last_chapter_read + 0.001,
                 ),
             )
             .execute()

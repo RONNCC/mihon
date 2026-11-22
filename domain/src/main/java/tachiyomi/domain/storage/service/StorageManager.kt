@@ -88,7 +88,11 @@ class StorageManager(
         childDirectories[name]
             ?.takeIf { (cachedParent, directory) -> cachedParent === parent && directory.exists() }
             ?.let { (_, directory) -> return directory }
-        return parent.createDirectory(name)?.also { childDirectories[name] = parent to it }
+        return parent.createDirectory(name)?.also {
+            // Keeps gallery apps from indexing downloaded pages
+            if (name == DOWNLOADS_PATH) DiskUtil.createNoMediaFile(it, context)
+            childDirectories[name] = parent to it
+        }
     }
 }
 

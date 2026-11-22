@@ -44,6 +44,8 @@ class BackupNotifier(
         setAutoCancel(false)
     }
 
+    private val restoreProgressThrottle = NotificationThrottle(RESTORE_PROGRESS_INTERVAL)
+
     private fun NotificationCompat.Builder.show(id: Int) {
         context.notify(id, build())
     }
@@ -89,6 +91,11 @@ class BackupNotifier(
         }
     }
 
+    /**
+     * Shows the restore progress, at most twice a second unless it is complete. The restore reports from several
+     * coroutines at once, so this shares the builder under a lock.
+     */
+    @Synchronized
     fun showRestoreProgress(
         content: String = "",
         progress: Int = 0,
@@ -118,7 +125,9 @@ class BackupNotifier(
             )
         }
 
-        builder.show(Notifications.ID_RESTORE_PROGRESS)
+        if (restoreProgressThrottle.isDue(isLast = progress >= maxAmount)) {
+            builder.show(Notifications.ID_RESTORE_PROGRESS)
+        }
 
         return builder
     }
@@ -184,3 +193,5 @@ class BackupNotifier(
         }
     }
 }
+
+private val RESTORE_PROGRESS_INTERVAL = 500.milliseconds

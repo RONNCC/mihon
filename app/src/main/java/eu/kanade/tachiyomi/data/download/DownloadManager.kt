@@ -265,7 +265,7 @@ class DownloadManager(
     }
 
     /**
-     * Deletes the directories of a list of downloaded chapters.
+     * Deletes the directories of a list of downloaded chapters, whatever the settings for deleting after reading say.
      *
      * @param chapters the list of chapters to delete.
      * @param manga the manga of the chapters.
@@ -273,13 +273,22 @@ class DownloadManager(
      */
     suspend fun deleteChapters(chapters: List<Chapter>, manga: Manga, source: Source) {
         withContext(Dispatchers.IO) {
-            val filteredChapters = getChaptersToDelete(chapters, manga)
-            if (filteredChapters.isEmpty()) {
+            if (chapters.isEmpty()) {
                 return@withContext
             }
 
-            deleteChapterDirs(filteredChapters, manga, source)
+            deleteChapterDirs(chapters, manga, source)
         }
+    }
+
+    /**
+     * Deletes the directories of chapters that were just read, except the ones the settings for deleting after
+     * reading keep: bookmarked chapters and those of an excluded category.
+     *
+     * @param chapters the chapters to delete, carrying their new read state.
+     */
+    suspend fun deleteReadChapters(chapters: List<Chapter>, manga: Manga, source: Source) {
+        deleteChapters(getChaptersToDelete(chapters, manga), manga, source)
     }
 
     /**

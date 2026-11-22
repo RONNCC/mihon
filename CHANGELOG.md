@@ -84,6 +84,16 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Fix a crash on covers of AVIF, JPEG XL, HEIF or JPEG 2000 too large to draw ([#1224](https://github.com/mihonapp/mihon/issues/1224))
 - Fix the updates widget failing to draw when its size can't be read, or when preparing its covers fails ([#491](https://github.com/mihonapp/mihon/issues/491))
 - Fix picking a custom cover failing on some devices ([#1376](https://github.com/mihonapp/mihon/issues/1376))
+- Fix Suwayomi marking one chapter too few as read for decimal chapter numbers ([#1575](https://github.com/mihonapp/mihon/issues/1575))
+- Fix MangaUpdates moving series out of their custom lists when a chapter is read ([#1473](https://github.com/mihonapp/mihon/issues/1473))
+- Fix Kitsu's Cloudflare check failing because requests used a different user agent than the one that solved it ([#3909](https://github.com/mihonapp/mihon/issues/3909))
+- Fix pages of downloads in progress showing up in gallery apps ([#4106](https://github.com/mihonapp/mihon/issues/4106))
+- Fix chapters of an excluded category or bookmarked chapters not being deletable by hand ([#1744](https://github.com/mihonapp/mihon/issues/1744))
+- Fix downloads stopping without a hint when the storage location is gone ([#2187](https://github.com/mihonapp/mihon/issues/2187))
+- Fix manual backups failing on storage providers that don't report a new file as a file, and partial backups being left behind after running out of memory ([#2377](https://github.com/mihonapp/mihon/issues/2377), [#864](https://github.com/mihonapp/mihon/issues/864))
+- Fix the folder of the old chapter cache never being deleted ([#2099](https://github.com/mihonapp/mihon/issues/2099))
+- Fix the restore progress notification updating too often ([#3160](https://github.com/mihonapp/mihon/issues/3160))
+- Fix a manga's cached cover being removed even when the refresh of its details failed to save ([#367](https://github.com/mihonapp/mihon/issues/367))
 
 ## [v0.21.3] - 2026-10-26
 ### Added
