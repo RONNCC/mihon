@@ -46,6 +46,19 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Fix the tracking start date staying empty when starting to track by setting the first chapter read ([@ashishsinghbora](https://github.com/ashishsinghbora)) ([#3930](https://github.com/mihonapp/mihon/pull/3930))
 - Fix taps around the tracker search buttons selecting a result underneath ([@kaosjammo](https://github.com/kaosjammo)) ([#4042](https://github.com/mihonapp/mihon/pull/4042))
 - Fix settings search highlighting every entry with the same title and scrolling to the first one ([@yuvarajvodiboina](https://github.com/yuvarajvodiboina))
+- Fix downloads not resuming after the app restarts offline, the network returns, or a short outage
+- Fix failed chapter downloads being counted as done when a rename fails, and clear the files an interrupted download leaves behind
+- Fix downloads being lost: chapters queued during a restore, chapters pending deletion while the reader still shows them, and removing an entry only deleting some of its chapters or deleting a directory another entry shares
+- Fix the reader losing the page to save after a recreation, jumping to the first page without a chapter button, and failing to open a chapter in downloaded only mode
+- Fix the outdated WebView hint crashing when shown off the main thread
+- Fix automatic backups deleting the older ones before the new backup is validated
+- Fix a failed migration losing downloads or dropping the entries that failed, and report it
+- Fix local sources keeping a file whose copy failed or losing a cover that can't be rewritten, and read the free space of folders chosen through the system file picker
+- Fix extensions being flagged obsolete or dropped from the list when their store is unreachable, and legacy repositories' `index_v2` being followed repeatedly
+- Fix tracker progress being lowered, queued updates of logged-out trackers being dropped, settled updates staying queued, and the queue not resuming after the app starts
+- Fix Hikka being logged out by transient errors
+- Fix library updates hanging on a source that keeps failing to connect, reporting a cancelled update as failed, and not notifying or downloading the chapters found before a stopped update
+- Fix the last library update time being recorded before the update finishes, and metadata refreshes that can't be cancelled, overlap library updates or fail to start silently
 
 ## [v0.21.3] - 2026-10-26
 ### Added
