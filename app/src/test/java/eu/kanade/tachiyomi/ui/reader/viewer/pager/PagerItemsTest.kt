@@ -107,4 +107,27 @@ class PagerItemsTest {
         val transitions = items.items.filterIsInstance<ChapterTransition>()
         transitions.map { it::class } shouldBe listOf(ChapterTransition.Next::class)
     }
+
+    @Test
+    fun `Moving to the next chapter while on its transition keeps that transition`() {
+        val first = chapter(1, pageCount = 1)
+        val second = chapter(2, pageCount = 1)
+        val third = chapter(3, pageCount = 1)
+        val secondPages = second.state
+        second.state = ReaderChapter.State.Wait
+        items.setChapters(ViewerChapters(first, null, second), forceTransition = false, currentPosition = 0)
+        val shown = items.items.indexOfFirst { it is ChapterTransition.Next }
+
+        second.state = secondPages
+        val update = items.setChapters(
+            ViewerChapters(second, first, third),
+            forceTransition = false,
+            currentPosition = shown,
+        )
+
+        val prevTransition = items.items.indexOfFirst { it is ChapterTransition.Prev }
+        items.items.filterIsInstance<ChapterTransition>().map { it::class } shouldBe
+            listOf(ChapterTransition.Prev::class)
+        update.position shouldBe prevTransition
+    }
 }

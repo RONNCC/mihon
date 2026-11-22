@@ -21,9 +21,12 @@ fun viewerItems(
     // Forces chapter transition if there is missing chapters
     val prevHasMissingChapters = calculateChapterGap(chapters.currChapter, chapters.prevChapter) > 0
     val nextHasMissingChapters = calculateChapterGap(chapters.nextChapter, chapters.currChapter) > 0
-    // The transition the reader is on stays so they aren't moved off it, the other one hides as set
-    val forcePrev = forceTransition || shownTransition is ChapterTransition.Prev
-    val forceNext = forceTransition || shownTransition is ChapterTransition.Next
+    // The transition the reader is on stays so they aren't moved off it, the other one hides as set. It is matched
+    // by its chapters, as it turns from Next to Prev when the chapter after it becomes the current one.
+    val forcePrev = forceTransition ||
+        shownTransition == ChapterTransition.Prev(chapters.currChapter, chapters.prevChapter)
+    val forceNext = forceTransition ||
+        shownTransition == ChapterTransition.Next(chapters.currChapter, chapters.nextChapter)
 
     // Add previous chapter pages and transition
     chapters.prevChapter?.pages?.let(items::addAll)
