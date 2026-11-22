@@ -137,14 +137,15 @@ class DownloadProvider(
         source: Source,
     ): Pair<UniFile?, List<UniFile>> = withContext(Dispatchers.IO) {
         val mangaDir = findMangaDir(manga.title, source) ?: return@withContext null to emptyList()
-        val leftovers = chapters.flatMap { chapter ->
+        val dirs = findInMangaDir(chapters, mangaDir) { chapter, find ->
             val dirName = getChapterDirName(chapter.name, chapter.scanlator, chapter.url)
             listOfNotNull(
-                mangaDir.findFile(dirName + Downloader.TMP_DIR_SUFFIX),
-                mangaDir.findFile("$dirName.cbz${Downloader.TMP_DIR_SUFFIX}"),
+                chapter.findDir(find),
+                find(dirName + Downloader.TMP_DIR_SUFFIX),
+                find("$dirName.cbz${Downloader.TMP_DIR_SUFFIX}"),
             )
         }
-        mangaDir to findChapterDirs(chapters, mangaDir).values.toList() + leftovers
+        mangaDir to dirs.flatten()
     }
 
     /**
@@ -165,6 +166,14 @@ class DownloadProvider(
 
     /**
      * Returns the download directory of each chapter that has one, keyed by chapter id.
+     */
+    private suspend fun findChapterDirs(chapters: List<Chapter>, mangaDir: UniFile): Map<Long, UniFile> {
+        return findInMangaDir(chapters, mangaDir) { chapter, find -> chapter.findDir(find)?.let { chapter.id to it } }
+            .toMap()
+    }
+
+    /**
+     * Looks up [lookUp] for each chapter, handing it a function that finds a file of [mangaDir] by name.
      *
      * A chapter is looked for under every name it may have been downloaded with, with the chapters looked up in
      * parallel. On a storage access framework directory each lookup is a content resolver query, so from
@@ -175,24 +184,23 @@ class DownloadProvider(
      * @param chapters the chapters to query.
      * @param mangaDir the download directory of the chapters' manga.
      */
-    private suspend fun findChapterDirs(chapters: List<Chapter>, mangaDir: UniFile): Map<Long, UniFile> {
+    private suspend fun <T : Any> findInMangaDir(
+        chapters: List<Chapter>,
+        mangaDir: UniFile,
+        lookUp: (Chapter, (String) -> UniFile?) -> T?,
+    ): List<T> {
         val isDocumentTree = mangaDir.uri.scheme == ContentResolver.SCHEME_CONTENT
         if (isDocumentTree && chapters.size >= LIST_CHAPTER_DIRS_MIN_CHAPTERS) {
             val chapterDirs = mangaDir.listFiles().orEmpty()
                 .filter { it.name != null }
                 .associateByTo(sortedMapOf(String.CASE_INSENSITIVE_ORDER)) { it.name!! }
-            return chapters
-                .mapNotNull { chapter -> chapter.findDir { chapterDirs[it] }?.let { chapter.id to it } }
-                .toMap()
+            return chapters.mapNotNull { chapter -> lookUp(chapter) { chapterDirs[it] } }
         }
         return coroutineScope {
             chapters
-                .map { chapter ->
-                    async(chapterDirLookupDispatcher) { chapter.findDir(mangaDir::findFile)?.let { chapter.id to it } }
-                }
+                .map { chapter -> async(chapterDirLookupDispatcher) { lookUp(chapter, mangaDir::findFile) } }
                 .awaitAll()
                 .filterNotNull()
-                .toMap()
         }
     }
 
