@@ -1,8 +1,11 @@
 blank_issues_enabled: false
 contact_links:
-  - name: ❌ Help with Extensions
+  - name: 🐞 Bug that also happens in upstream Mihon
+    url: https://github.com/mihonapp/mihon/issues
+    about: Check upstream's issues first and report there if upstream Mihon (not this fork) is affected
+  - name: ❌ Help with Extensions (upstream docs)
     url: https://mihon.app/docs/faq/browse/extensions
-    about: For extension-related questions/issues
-  - name: 🖥️ Mihon website
+    about: For extension-related questions/issues. Upstream Mihon's website, not this fork's
+  - name: 🖥️ Upstream Mihon website
     url: https://mihon.app/
-    about: Guides, troubleshooting, and answers to common questions
+    about: Guides, troubleshooting, and answers to common questions about upstream Mihon

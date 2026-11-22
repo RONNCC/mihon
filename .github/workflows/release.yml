@@ -21,6 +21,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Check tag matches versionName
+        run: |
+          version=$(sed -n 's/^ *versionName = "\(.*\)"$/\1/p' app/build.gradle.kts)
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match versionName $version in app/build.gradle.kts (expected v$version)."
+            exit 1
+          fi
+
       - name: Set up JDK
         uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
@@ -51,9 +59,9 @@ jobs:
           ALIAS: ${{ secrets.ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-      # No -Pdist: keeps telemetry and the upstream updater out of the fork's builds.
+      # No -Pdist, which also switches on telemetry; only the update checker (which follows RONNCC/mihon) is enabled.
       - name: Build
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleRelease -Penable-updater=true
 
       - name: Rename APK
         run: |

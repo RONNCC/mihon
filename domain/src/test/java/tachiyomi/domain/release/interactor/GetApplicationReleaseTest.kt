@@ -119,6 +119,64 @@ class GetApplicationReleaseTest {
         isUpdateAvailable(tag = "v0.21.4", current = "0.21.3-1234") shouldBe true
     }
 
+    @Test
+    fun `Fork release with a higher ronncc number is an update`() = runTest {
+        isUpdateAvailable(tag = "v0.21.3-ronncc.5", current = "0.21.3-ronncc.4") shouldBe true
+        isUpdateAvailable(tag = "v0.21.3-ronncc.4", current = "0.21.3-ronncc.5") shouldBe false
+        isUpdateAvailable(tag = "v0.21.3-ronncc.5", current = "0.21.3-ronncc.5") shouldBe false
+    }
+
+    @Test
+    fun `Fork release numbers are compared as numbers`() = runTest {
+        isUpdateAvailable(tag = "v0.21.3-ronncc.10", current = "0.21.3-ronncc.9") shouldBe true
+        isUpdateAvailable(tag = "v0.21.3-ronncc.9", current = "0.21.3-ronncc.10") shouldBe false
+    }
+
+    @Test
+    fun `Upstream version of a fork release is compared before the ronncc number`() = runTest {
+        isUpdateAvailable(tag = "v0.21.4-ronncc.1", current = "0.21.3-ronncc.9") shouldBe true
+        isUpdateAvailable(tag = "v0.21.3-ronncc.9", current = "0.21.4-ronncc.1") shouldBe false
+    }
+
+    @Test
+    fun `Plain upstream tag is never newer than a fork build`() = runTest {
+        isUpdateAvailable(tag = "v0.21.3", current = "0.21.3-ronncc.5") shouldBe false
+        isUpdateAvailable(tag = "v0.21.2", current = "0.21.3-ronncc.1") shouldBe false
+        isUpdateAvailable(tag = "v0.22.0", current = "0.21.3-ronncc.5") shouldBe false
+    }
+
+    @Test
+    fun `Fork release is newer than the plain upstream version it is based on`() = runTest {
+        isUpdateAvailable(tag = "v0.21.3-ronncc.1", current = "0.21.3") shouldBe true
+        isUpdateAvailable(tag = "v0.21.3-ronncc.1", current = "0.21.4") shouldBe false
+    }
+
+    @Test
+    fun `Build suffix of an installed fork version is ignored`() = runTest {
+        isUpdateAvailable(tag = "v0.21.3-ronncc.5", current = "0.21.3-ronncc.5-1234") shouldBe false
+        isUpdateAvailable(tag = "v0.21.3-ronncc.6", current = "0.21.3-ronncc.5-1234") shouldBe true
+    }
+
+    @Test
+    fun `Nightly check still compares the commit count only`() = runTest {
+        coEvery { releaseService.latest(any()) } returns Release(
+            "r2000",
+            "info",
+            "http://example.com/release_link",
+            "http://example.com/release_link.apk",
+        )
+        val result = getApplicationRelease.await(
+            GetApplicationRelease.Arguments(
+                isFoss = false,
+                isNightly = true,
+                commitCount = 2000,
+                versionName = "0.21.3-ronncc.5-2000",
+                repository = "test",
+            ),
+        )
+        result shouldBe GetApplicationRelease.Result.NoNewUpdate
+    }
+
     private suspend fun isUpdateAvailable(tag: String, current: String): Boolean {
         coEvery { releaseService.latest(any()) } returns Release(
             tag,

@@ -21,7 +21,7 @@
 > * **Where to get builds:** only the [Releases page of this repository](https://github.com/RONNCC/mihon/releases). Do not use [mihon.app/download](https://mihon.app/download), the upstream Stable or Beta builds or any other site. They give you upstream Mihon, not this fork.
 > * **Links on other sites do not apply.** Upstream's website, [Discord server](https://discord.gg/mihon), FAQ, Weblate and the links in the app's *About* screen are for upstream Mihon. Do not report fork bugs there.
 > * **Same app ID, different signing key.** The fork's package name is `app.mihon`, the same as upstream Mihon. The two cannot be installed side by side, and Android will not install one over the other because the keys differ. If upstream Mihon is on your phone, back it up and uninstall it first (see step 1 below).
-> * **Update checker:** fork releases are built with the in-app update checker turned off, so the app should not offer upstream updates. Never install an upstream Mihon APK over the fork. It would fail to install, or you would uninstall the fork and lose its data. Update only from this repository's Releases page. Details: [Updating](#updating-the-fork).
+> * **Update checker:** the app checks this repository's [Releases page](https://github.com/RONNCC/mihon/releases) for new versions, never upstream's. Never install an upstream Mihon APK over the fork. It would fail to install, or you would uninstall the fork and lose its data. Details: [Updating](#updating-the-fork).
 > * **Signing key** (SHA-256 of the signing certificate), which every fork release must show: `43f55df565f730d647833070947a6b478e160a0e06052f49fcce9ad3cd0244ca`. See [Verify the download](#verify-the-download).
 > * **Extensions:** the fork has its own extension store for the fixed extensions. See [step 8](#8-add-the-extension-stores-and-install-extensions).
 > * **Source, license and credits:** the code is Mihon's, under the Apache License 2.0. See [Credits](#credits) and [License](#license). Upstream is [mihonapp/mihon](https://github.com/mihonapp/mihon).
@@ -169,8 +169,9 @@ Upstream Mihon v0.21.3 shows a different fingerprint (`9add655a78e96c4ec7a53ef89
 
 * Go to the [Releases page](https://github.com/RONNCC/mihon/releases), download the new APK (same file type as before) and open it. Android installs it over the old one and keeps your data. This only works because every release uses the same signing key.
 * You do not need to uninstall first.
-* **Update checker:** upstream Mihon checks `mihonapp/mihon` for new versions. Fork releases are built without that checker (the release workflow builds without upstream's distribution flag), and *Settings → About* has no *Check for updates* row in such builds. I read this in the code and did not test it on a phone. The app also does not tell you when a fork update exists. Check the Releases page yourself, or watch the repository with *Watch → Custom → Releases* on GitHub.
-* *What's new* in *Settings → About* opens upstream's page for the same version number. It is not the fork's release notes.
+* **Update checker:** the app checks this repository's latest release (`RONNCC/mihon`) on start and every 6 hours while the app is open, and in *Settings → About → Check for updates*. It compares the version number first, then the fork number: `0.21.3-ronncc.10` is newer than `0.21.3-ronncc.9`. It offers the arm64-v8a APK on 64-bit ARM phones and the universal APK on others. The version comparison is unit-tested. I did not test the whole update flow on a phone. `v0.21.3-ronncc.4` and older have no checker, so update those by hand from the Releases page.
+* *What's new* in *Settings → About* opens the fork's release notes for your version.
+* The app's *Website*, *Discord*, *X*, *Facebook* and *Reddit* links in *About* are labelled as upstream Mihon's. The *GitHub* link goes to this repository.
 * If the app ever offers an update that links to `mihonapp/mihon` or to mihon.app, do not install it.
 * Extension updates come from the stores you added, as usual.
 
@@ -189,7 +190,7 @@ Upstream Mihon v0.21.3 shows a different fingerprint (`9add655a78e96c4ec7a53ef89
 
 The [CHANGELOG](./CHANGELOG.md) has the full list. It is grouped here:
 
-* **Own releases.** Builds from this repository are signed with the fork's key, are published as a universal APK and an arm64-v8a APK, and contain no Firebase crash reporting or analytics code (I found no Firebase code in the `ronncc.3` APK) and no upstream update checker.
+* **Own releases.** Builds from this repository are signed with the fork's key, are published as a universal APK and an arm64-v8a APK, and contain no Firebase crash reporting or analytics code (I found no Firebase code in the `ronncc.3` APK). The update checker follows this repository's releases, and the version is `<upstream version>-ronncc.<N>`. The app name, icon and package stay Mihon's.
 * **Downloads.** They resume after a restart or when the network returns. They are not counted as done when a rename fails, and they are not lost when a restore queues chapters or when entries are removed.
 * **Library updates.** They no longer hang on a source that keeps failing to connect. A cancelled update is not reported as failed. The last update time is recorded when the update finishes. Entries are not skipped when the clocks change.
 * **Backups and restore.** Automatic backups keep the old ones until the new one is valid. A restore no longer changes internal app state such as trusted extensions, no longer replaces an extension store's signing key, and no longer crashes on an invalid date format.
@@ -213,7 +214,7 @@ The [CHANGELOG](./CHANGELOG.md) has the full list. It is grouped here:
 
 [Code of conduct](./CODE_OF_CONDUCT.md) · [Contributing guide](./CONTRIBUTING.md)
 
-* **Bugs in this fork:** tell the fork's maintainer, [RONNCC](https://github.com/RONNCC). GitHub Issues are turned off on this repository for now. Give the version from *More → Settings → About → Version*.
+* **Bugs in this fork:** tell the fork's maintainer, [RONNCC](https://github.com/RONNCC). Open an [issue](https://github.com/RONNCC/mihon/issues/new/choose) on this repository. Give the version from *More → Settings → About → Version*.
 * **Bugs that also happen in upstream Mihon:** report them upstream, after you check that [upstream's issues](https://github.com/mihonapp/mihon/issues) do not list them yet. Upstream's [FAQ](https://mihon.app/docs/faq/general) and [Discord server](https://discord.gg/mihon) are for upstream Mihon. Do not ask them about fork builds.
 * **Translations** are done upstream with [Weblate](https://hosted.weblate.org/engage/mihon/). This fork does not run its own translation project.
 * Pull requests to this fork are welcome. For major changes, please open an issue first.

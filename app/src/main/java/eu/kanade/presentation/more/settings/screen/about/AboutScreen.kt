@@ -180,34 +180,34 @@ fun AboutScreen() {
                     horizontalArrangement = Arrangement.Center,
                 ) {
                     LinkIcon(
-                        label = stringResource(MR.strings.website),
+                        label = "${stringResource(MR.strings.website)} (upstream Mihon)",
                         icon = MaterialSymbols.Rounded.Public,
                         url = "https://mihon.app",
                     )
                     LinkIcon(
-                        label = "Discord",
+                        label = "Discord (upstream Mihon)",
                         icon = SimpleIcons.Discord,
                         url = Constants.URL_DISCORD,
                     )
                     LinkIcon(
-                        label = "X",
+                        label = "X (upstream Mihon)",
                         icon = SimpleIcons.X,
                         url = "https://x.com/mihonapp",
                     )
                     LinkIcon(
-                        label = "Facebook",
+                        label = "Facebook (upstream Mihon)",
                         icon = SimpleIcons.Facebook,
                         url = "https://facebook.com/mihonapp",
                     )
                     LinkIcon(
-                        label = "Reddit",
+                        label = "Reddit (upstream Mihon)",
                         icon = SimpleIcons.Reddit,
                         url = "https://www.reddit.com/r/mihonapp",
                     )
                     LinkIcon(
-                        label = "GitHub",
+                        label = "GitHub (RONNCC/mihon fork)",
                         icon = SimpleIcons.Github,
-                        url = "https://github.com/mihonapp",
+                        url = "https://github.com/RONNCC/mihon",
                     )
                 }
             }

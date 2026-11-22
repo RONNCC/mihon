@@ -1,5 +1,5 @@
 > [!NOTE]
-> This is the RONNCC fork of Mihon. Fork-only problems go to the fork's maintainer, not to upstream. The Discord, website and Weblate links below belong to upstream Mihon. See the [README](./README.md).
+> This is the RONNCC fork of Mihon. Fork-only problems go to the fork's maintainer, not to upstream. The Discord, website and Weblate links below belong to upstream Mihon. See the [README](./README.md). To merge upstream and release the fork, see [UPSTREAM.md](./UPSTREAM.md).
 
 Looking to report an issue/bug or make a feature request for upstream Mihon? Please refer to the [upstream README](https://github.com/mihonapp/mihon#readme).
 
@@ -39,6 +39,9 @@ Translations are done externally via Weblate. See [our website](https://mihon.ap
 # Forks
 
 Forks are allowed so long as they abide by [the project's LICENSE](https://github.com/mihonapp/mihon/blob/main/LICENSE).
+
+> [!NOTE]
+> The advice below is upstream's. The RONNCC fork deliberately keeps the app name, icon and package so it can keep merging upstream. Only its version carries a `-ronncc.N` tag, and its update checker follows the fork's own releases. See [UPSTREAM.md](./UPSTREAM.md).
 
 When creating a fork, remember to:
 

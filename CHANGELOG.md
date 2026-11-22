@@ -34,7 +34,14 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Keep online chapters cached for a day instead of up to a size limit ([@AntsyLich](https://github.com/AntsyLich))
 - Apply the reader's grayscale and inverted colors to pages only, not to transition, loading and error pages ([@AntsyLich](https://github.com/AntsyLich))
 - Allow plain-http extension stores again
+- Add a fork tag to the version name (`0.21.3-ronncc.5`); the app name, icon and package stay Mihon's. The Release workflow fails when the pushed tag is not `v` plus the version name
+- Check the fork's releases (`RONNCC/mihon`) for app updates instead of upstream's, and enable the update checker in the fork's release builds. Fork versions are compared by upstream version first and then by the `ronncc` number, and a plain upstream tag is never newer than a fork build
+- Point the *What's new* and *GitHub* links in *About* to the fork, label the other links as upstream's, and retarget the issue templates to the fork
+- Merge upstream/main (Android Gradle Plugin 9.5.2, Spotless 8.12.0), and document how to merge upstream and release the fork in `UPSTREAM.md`
 - Match the default user agent's Chrome version to the installed WebView, and report the exact WebView version in client hints ([@AwkwardPeak7](https://github.com/AwkwardPeak7)) ([#4224](https://github.com/mihonapp/mihon/pull/4224))
+
+### Other
+- Add a weekly workflow that opens or updates one issue when upstream has commits that are not in `main`
 
 ### Removed
 - Remove "Custom hardware bitmap threshold" and "Custom display profile" advanced settings ([@wwww-wwww](https://github.com/wwww-wwww)) ([#3786](https://github.com/mihonapp/mihon/pull/3786))

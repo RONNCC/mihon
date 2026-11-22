@@ -35,13 +35,28 @@ class GetApplicationRelease(
             // tagged as something like "r1234"
             versionTag.replace("[^\\d.]".toRegex(), "").toInt() > commitCount
         } else {
-            // Release builds: based on releases in "mihonapp/mihon" repo
-            // tagged as something like "v0.1.2"
-            compareVersions(parseVersion(versionTag), parseVersion(versionName)) > 0
+            // Release builds: based on releases in the fork's "RONNCC/mihon" repo
+            // tagged as something like "v0.1.2" or, for the fork, "v0.1.2-ronncc.3"
+            isNewRelease(versionTag, versionName)
         }
     }
 
-    /** Leading numeric components of a version like "v0.21.3" or "0.21.3-1234", ignoring any suffix. */
+    private fun isNewRelease(versionTag: String, versionName: String): Boolean {
+        val tagFork = parseForkBuild(versionTag)
+        val currentFork = parseForkBuild(versionName)
+        // A fork build only follows the fork's own releases, so a plain upstream-style tag is never newer.
+        if (currentFork != null && tagFork == null) return false
+
+        val diff = compareVersions(parseVersion(versionTag), parseVersion(versionName))
+        return diff > 0 || (diff == 0 && (tagFork ?: 0) > (currentFork ?: 0))
+    }
+
+    /** The N of a fork version like "v0.21.3-ronncc.5" or "0.21.3-ronncc.5-1234", or null if it isn't a fork one. */
+    private fun parseForkBuild(version: String): Int? {
+        return FORK_REGEX.find(version)?.groupValues?.get(1)?.toIntOrNull()
+    }
+
+    /** Leading numeric components of a version like "v0.21.3" or "0.21.3-ronncc.5-1234", ignoring any suffix. */
     private fun parseVersion(version: String): List<Int> {
         return VERSION_REGEX.find(version)?.value.orEmpty()
             .split(".")
@@ -73,5 +88,6 @@ class GetApplicationRelease(
 
     private companion object {
         val VERSION_REGEX = "\\d+(\\.\\d+)*".toRegex()
+        val FORK_REGEX = "-ronncc\\.(\\d+)".toRegex()
     }
 }

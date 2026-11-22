@@ -38,7 +38,9 @@ android {
         applicationId = "app.mihon"
 
         versionCode = 39
-        versionName = "0.21.3"
+        // Fork releases append -ronncc.N; the Release workflow requires the pushed tag to be v + this value.
+        // Keep versionCode equal to upstream's: its migrations are keyed on it. See UPSTREAM.md.
+        versionName = "0.21.3-ronncc.5"
 
         buildConfigField("boolean", "TELEMETRY_INCLUDED", "${Config.includeTelemetry}")
         buildConfigField("boolean", "UPDATER_ENABLED", "${Config.enableUpdater}")

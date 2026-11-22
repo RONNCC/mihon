@@ -1,0 +1,38 @@
+name: Upstream check
+
+on:
+  schedule:
+    - cron: '23 6 * * 1' # weekly, Monday
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    if: github.repository != 'mihonapp/mihon'
+    name: Check for new upstream commits
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+
+    steps:
+      - name: Open, update or close the issue
+        run: |
+          title="Upstream mihonapp/mihon has commits that are not in main"
+          ahead=$(gh api "repos/$GH_REPO/compare/main...mihonapp:main" --jq .ahead_by)
+          number=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ "$ahead" -eq 0 ]; then
+            [ -z "$number" ] || gh issue close "$number" --comment "main has caught up with upstream."
+            exit 0
+          fi
+          release=$(gh api repos/mihonapp/mihon/releases/latest --jq .tag_name)
+          commits=$(gh api "repos/$GH_REPO/compare/main...mihonapp:main" --jq '.commits[-10:] | reverse | .[] | "- \(.sha[0:9]) \(.commit.message | split("\n")[0])"')
+          printf 'upstream/main is **%s** commits ahead of main. Latest upstream release: %s.\n\nNewest upstream commits:\n%s\n\nMerge them as described in [UPSTREAM.md](https://github.com/%s/blob/main/UPSTREAM.md). Nothing is merged automatically.\n' "$ahead" "$release" "$commits" "$GH_REPO" > body.md
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --body-file body.md
+          else
+            gh issue create --title "$title" --body-file body.md
+          fi

@@ -1,5 +1,5 @@
 name: ⭐ Feature request
-description: Suggest a feature to improve Mihon
+description: Suggest a feature to improve this Mihon fork (RONNCC/mihon)
 labels: [feature request]
 body:
   - type: textarea
@@ -24,13 +24,13 @@ body:
     id: acknowledgements
     attributes:
       label: Acknowledgements
-      description: Read this carefully, we will close and ignore your issue if you skimmed through this.
+      description: Read this carefully, the issue may be closed if you skimmed through this.
       options:
         - label: I have searched the existing issues and this is a new ticket, **NOT** a duplicate or related to another open or closed issue.
           required: true
         - label: I have written a short but informative title.
           required: true
-        - label: I have updated the app to version **[0.21.3](https://github.com/mihonapp/mihon/releases/latest)**.
+        - label: I have updated the app to the [latest fork release](https://github.com/RONNCC/mihon/releases/latest).
           required: true
         - label: I will fill out all of the requested information in this form.
           required: true
