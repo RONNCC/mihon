@@ -14,6 +14,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.preference.PreferenceManager
+import androidx.work.ExistingWorkPolicy
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.memory.MemoryCache
@@ -24,6 +25,8 @@ import coil3.util.DebugLogger
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.createGraphFactory
 import eu.kanade.domain.base.BasePreferences
+import eu.kanade.domain.track.service.DelayedTrackingUpdateWorker
+import eu.kanade.domain.track.store.DelayedTrackingStore
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.domain.ui.model.setAppCompatDelegateThemeMode
 import eu.kanade.tachiyomi.core.security.PrivacyPreferences
@@ -109,6 +112,8 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
     @Inject private lateinit var widgetManager: WidgetManager
 
+    @Inject private lateinit var delayedTrackingStore: Lazy<DelayedTrackingStore>
+
     @Inject private lateinit var migrations: Set<Migration>
 
     @Inject @AppCoroutineScope
@@ -116,7 +121,7 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
     private val disableIncognitoReceiver = DisableIncognitoReceiver()
 
-    private var pendingDeletesFlushed = false
+    private var startupWorkDone = false
 
     @SuppressLint("LaunchActivityFromNotification")
     override fun onCreate() {
@@ -270,9 +275,16 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
         SecureActivityDelegate.onApplicationStart(this)
 
         // Deletions queued by a reader that never finished, e.g. when the process was killed
-        if (!pendingDeletesFlushed) {
-            pendingDeletesFlushed = true
+        if (!startupWorkDone) {
+            startupWorkDone = true
             scope.launch { downloadManager.value.deletePendingChapters() }
+
+            // Tracker updates left over once the worker's retries ran out
+            scope.launch(Dispatchers.IO) {
+                if (delayedTrackingStore.value.getItems().isNotEmpty()) {
+                    DelayedTrackingUpdateWorker.setupTask(this@App, ExistingWorkPolicy.KEEP)
+                }
+            }
         }
     }
 

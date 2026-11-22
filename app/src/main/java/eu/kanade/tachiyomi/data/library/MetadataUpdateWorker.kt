@@ -168,14 +168,14 @@ class MetadataUpdateWorker(context: Context, workerParams: WorkerParameters) :
     }
 
     companion object {
-        private const val TAG = "MetadataUpdate"
+        internal const val TAG = "MetadataUpdate"
         private const val WORK_NAME_MANUAL = "MetadataUpdate"
 
         private const val MANGA_PER_SOURCE_QUEUE_WARNING_THRESHOLD = 60
 
         suspend fun startNow(workManager: WorkManager): Boolean {
-            if (workManager.isRunning(TAG)) {
-                // Already running either as a scheduled or manual job
+            if (workManager.isRunning(TAG) || workManager.isRunning(LibraryUpdateWorker.TAG)) {
+                // Already running, or a library update is sharing the progress notification
                 return false
             }
             val request = OneTimeWorkRequestBuilder<MetadataUpdateWorker>()
@@ -185,6 +185,10 @@ class MetadataUpdateWorker(context: Context, workerParams: WorkerParameters) :
             workManager.enqueueUniqueWork(WORK_NAME_MANUAL, ExistingWorkPolicy.KEEP, request)
 
             return true
+        }
+
+        fun stop(workManager: WorkManager) {
+            workManager.cancelUniqueWork(WORK_NAME_MANUAL)
         }
     }
 }

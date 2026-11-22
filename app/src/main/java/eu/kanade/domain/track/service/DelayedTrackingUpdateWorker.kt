@@ -11,6 +11,7 @@ import androidx.work.WorkerParameters
 import dev.zacsweers.metro.Inject
 import eu.kanade.domain.track.interactor.TrackChapter
 import eu.kanade.domain.track.store.DelayedTrackingStore
+import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.util.system.workManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -30,6 +31,8 @@ class DelayedTrackingUpdateWorker(private val context: Context, workerParams: Wo
 
     @Inject lateinit var trackChapter: TrackChapter
 
+    @Inject lateinit var trackerManager: TrackerManager
+
     @Inject lateinit var delayedTrackingStore: DelayedTrackingStore
 
     override suspend fun doWork(): Result {
@@ -43,10 +46,16 @@ class DelayedTrackingUpdateWorker(private val context: Context, workerParams: Wo
             delayedTrackingStore.getItems()
                 .mapNotNull {
                     val track = getTracks.awaitOne(it.trackId)
-                    if (track == null) {
+                    // Nothing left to send: the track or its tracker is gone, or the progress already synced
+                    if (
+                        track == null ||
+                        trackerManager.get(track.trackerId) == null ||
+                        it.lastChapterRead <= track.lastChapterRead
+                    ) {
                         delayedTrackingStore.remove(it.trackId)
+                        return@mapNotNull null
                     }
-                    track?.copy(lastChapterRead = it.lastChapterRead.toDouble())
+                    track.copy(lastChapterRead = it.lastChapterRead.toDouble())
                 }
                 .forEach { track ->
                     logcat(LogPriority.DEBUG) {
@@ -62,7 +71,7 @@ class DelayedTrackingUpdateWorker(private val context: Context, workerParams: Wo
     companion object {
         private const val TAG = "DelayedTrackingUpdate"
 
-        fun setupTask(context: Context) {
+        fun setupTask(context: Context, existingWorkPolicy: ExistingWorkPolicy = ExistingWorkPolicy.REPLACE) {
             val constraints = Constraints(
                 requiredNetworkType = NetworkType.CONNECTED,
             )
@@ -73,7 +82,7 @@ class DelayedTrackingUpdateWorker(private val context: Context, workerParams: Wo
                 .addTag(TAG)
                 .build()
 
-            context.workManager.enqueueUniqueWork(TAG, ExistingWorkPolicy.REPLACE, request)
+            context.workManager.enqueueUniqueWork(TAG, existingWorkPolicy, request)
         }
     }
 }
