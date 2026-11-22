@@ -105,17 +105,19 @@ class UpdateMangaFromRemote(
                 null
             }
 
+        // The stale file is only dropped once the update is stored, so a failed update keeps the old cover
+        var staleCoverCache = false
         val coverLastModified = when {
             // Never refresh covers if the url is empty to avoid "losing" existing covers
             remoteManga.thumbnail_url.isNullOrEmpty() -> null
             !manualFetch && localManga.thumbnailUrl == remoteManga.thumbnail_url -> null
             localManga.isLocal() -> Clock.System.now()
             localManga.hasCustomCover(coverCache) -> {
-                coverCache.deleteFromCache(localManga, false)
+                staleCoverCache = true
                 null
             }
             else -> {
-                coverCache.deleteFromCache(localManga, false)
+                staleCoverCache = true
                 Clock.System.now()
             }
         }
@@ -138,6 +140,9 @@ class UpdateMangaFromRemote(
                 memo = remoteManga.memo,
             ),
         )
+        if (success && staleCoverCache) {
+            coverCache.deleteFromCache(localManga, false)
+        }
         if (success && title != null) {
             downloadManager.renameManga(localManga, title)
         }

@@ -68,6 +68,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Fix manual backups failing on storage providers that don't report a new file as a file, and partial backups being left behind after running out of memory ([#2377](https://github.com/mihonapp/mihon/issues/2377), [#864](https://github.com/mihonapp/mihon/issues/864))
 - Fix the folder of the old chapter cache never being deleted ([#2099](https://github.com/mihonapp/mihon/issues/2099))
 - Fix the restore progress notification updating too often ([#3160](https://github.com/mihonapp/mihon/issues/3160))
+- Fix a manga's cached cover being removed even when the refresh of its details failed to save ([#367](https://github.com/mihonapp/mihon/issues/367))
 
 ## [v0.21.3] - 2026-10-26
 ### Added
