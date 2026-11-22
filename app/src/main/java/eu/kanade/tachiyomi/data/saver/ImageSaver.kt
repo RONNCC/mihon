@@ -35,11 +35,19 @@ class ImageSaver(
     val context: Context,
 ) {
 
+    companion object {
+        /** What a name given to [save] leaves room for, as its extension is added to the 240 bytes of a file name. */
+        val MAX_EXTENSION_BYTES = ImageUtil.ImageType.entries.maxOf { it.extension.length } + 1
+    }
+
     fun save(image: Image): Uri {
         val data = image.data
 
         val type = ImageUtil.findImageType(data) ?: throw IllegalArgumentException("Not an image")
-        val filename = DiskUtil.buildValidFilename("${image.name}.${type.extension}")
+        // The name is cut to fit, not the extension
+        val extension = ".${type.extension}"
+        val filename = DiskUtil.buildValidFilename(image.name, DiskUtil.MAX_FILE_NAME_BYTES - extension.length) +
+            extension
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || image.location !is Location.Pictures) {
             return save(data(), image.location.directory(context), filename)
