@@ -77,7 +77,8 @@ class MangaUpdates(
     override fun displayScore(track: DomainTrack): String = track.score.toString()
 
     override suspend fun update(track: Track, didReadChapter: Boolean): Track {
-        if (track.status != COMPLETE_LIST && didReadChapter) {
+        // A series in a custom list has an id outside the built-in ones, and moving it would take it out of that list
+        if (didReadChapter && track.status != COMPLETE_LIST && track.status in getStatusList()) {
             track.status = READING_LIST
         }
         api.updateSeriesListItem(track)
