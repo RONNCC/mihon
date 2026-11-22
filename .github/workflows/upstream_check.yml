@@ -13,7 +13,7 @@ jobs:
   check:
     if: github.repository != 'mihonapp/mihon'
     name: Check for new upstream commits
-    runs-on: blacksmith-2vcpu-ubuntu-2404
+    runs-on: ubuntu-latest # the repo has no Blacksmith runners
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
