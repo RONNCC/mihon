@@ -31,6 +31,7 @@ abstract class BaseTracker(
 
     val trackPreferences: TrackPreferences = dependencies.trackPreferences
     val networkService: NetworkHelper by dependencies.networkHelper
+    val oauthLoginState: OAuthLoginState by lazy { OAuthLoginState(trackPreferences.oauthLoginState(this)) }
 
     private val context: Context = dependencies.context
     private val addTracks: AddTracks by dependencies.addTracks

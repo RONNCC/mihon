@@ -63,7 +63,7 @@ class ExtensionStoreRepositoryImpl(
             indexUrl = indexUrl,
             name = name,
             badgeLabel = name,
-            signingKey = "NO_SIGNING_KEY",
+            signingKey = ExtensionStore.NO_SIGNING_KEY,
             contactWebsite = indexUrl,
             contactDiscord = null,
             isLegacy = false,
@@ -71,9 +71,9 @@ class ExtensionStoreRepositoryImpl(
         )
     }
 
-    override suspend fun refreshAll() {
-        try {
-            val refreshed = stores.first().mapNotNull { store ->
+    override suspend fun refreshAll(): List<ExtensionStore> {
+        return try {
+            val fetched = stores.first().mapNotNull { store ->
                 service.fetch(store.indexUrl)
                     .onFailure {
                         logcat(LogPriority.ERROR, it) {
@@ -81,21 +81,33 @@ class ExtensionStoreRepositoryImpl(
                         }
                     }
                     .getOrNull()
-                    ?.let { store.indexUrl to it }
+                    ?.let { store to it }
+            }
+            // Whoever can change the index could otherwise get any apk trusted, so a new key needs the user to add
+            // the store again
+            val (keyChanged, refreshed) = fetched.partition { (store, refreshed) ->
+                store.signingKey != ExtensionStore.NO_SIGNING_KEY && store.signingKey != refreshed.signingKey
+            }
+            keyChanged.forEach { (store, _) ->
+                logcat(LogPriority.WARN) {
+                    "Signing key of extension store '${store.name} (${store.indexUrl})' changed"
+                }
             }
             database.transaction {
-                refreshed.forEach { (indexUrl, store) ->
-                    if (!database.extension_storeQueries.contains(indexUrl).awaitAsOne()) {
+                refreshed.forEach { (oldStore, store) ->
+                    if (!database.extension_storeQueries.contains(oldStore.indexUrl).awaitAsOne()) {
                         return@forEach
                     }
                     upsert(store)
-                    if (indexUrl != store.indexUrl) {
-                        database.extension_storeQueries.delete(indexUrl)
+                    if (oldStore.indexUrl != store.indexUrl) {
+                        database.extension_storeQueries.delete(oldStore.indexUrl)
                     }
                 }
             }
+            keyChanged.map { (store, _) -> store }
         } catch (e: Exception) {
             logcat(LogPriority.ERROR, e)
+            emptyList()
         }
     }
 

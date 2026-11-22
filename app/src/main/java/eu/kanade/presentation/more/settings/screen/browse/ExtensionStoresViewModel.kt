@@ -22,7 +22,6 @@ import kotlinx.coroutines.launch
 import mihon.domain.extension.interactor.AddExtensionStore
 import mihon.domain.extension.interactor.GetExtensionStores
 import mihon.domain.extension.interactor.RemoveExtensionStore
-import mihon.domain.extension.interactor.UpdateExtensionStores
 import mihon.domain.extension.model.ExtensionStore
 import kotlin.time.Duration.Companion.seconds
 
@@ -33,7 +32,6 @@ class ExtensionStoresViewModel(
     private val getExtensionStores: GetExtensionStores,
     private val addExtensionStore: AddExtensionStore,
     private val removeExtensionStore: RemoveExtensionStore,
-    private val updateExtensionStores: UpdateExtensionStores,
     private val extensionManager: ExtensionManager,
 ) : ViewModel() {
 
@@ -90,7 +88,7 @@ class ExtensionStoresViewModel(
      */
     fun refreshRepos() {
         viewModelScope.launch(Dispatchers.IO) {
-            updateExtensionStores()
+            extensionManager.refreshStores()
         }
     }
 

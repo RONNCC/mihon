@@ -47,6 +47,11 @@ class NetworkHelper(
                 if (preferences.redactSensitiveHeaders.get()) {
                     redactHeader("Authorization")
                     redactHeader("Auth")
+                    redactHeader("Proxy-Authorization")
+                    redactHeader("Cookie")
+                    redactHeader("Set-Cookie")
+                    // Kavita sends its API key in the URL
+                    redactQueryParams("apiKey")
                 }
             }
             builder.addNetworkInterceptor(httpLoggingInterceptor)

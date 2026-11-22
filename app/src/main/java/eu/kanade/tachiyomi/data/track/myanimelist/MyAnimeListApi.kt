@@ -278,10 +278,11 @@ class MyAnimeListApi(
 
         private var codeVerifier: String = ""
 
-        fun authUrl(): Uri = "$BASE_OAUTH_URL/authorize".toUri().buildUpon()
+        fun authUrl(state: String): Uri = "$BASE_OAUTH_URL/authorize".toUri().buildUpon()
             .appendQueryParameter("client_id", CLIENT_ID)
             .appendQueryParameter("code_challenge", getPkceChallengeCode())
             .appendQueryParameter("response_type", "code")
+            .appendQueryParameter("state", state)
             .build()
 
         fun mangaUrl(id: Long): Uri = "$BASE_API_URL/manga".toUri().buildUpon()

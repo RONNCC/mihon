@@ -384,6 +384,8 @@
 
     <!-- Extension store -->
     <string name="extensionStores">Extension stores</string>
+    <string name="extensionStores.signingKeyChanged">%1$s changed its signing key. Its extensions won\'t be trusted with the new key until you remove the store and add it again</string>
+    <string name="extensionStores.httpsRequired">%1$s can\'t be updated because extension stores must use HTTPS. Remove it and add it again with an https:// address</string>
     <string name="action.addExtensionStore">Add extension store</string>
     <string name="extensionStoresScreen.emptyLabel">You haven\'t added an extension store yet</string>
     <string name="extensionStoresScreen.addStore.title">Add extension store</string>
@@ -722,6 +724,7 @@
     <string name="login">Login</string>
     <string name="logging_in">Logging in…</string>
     <string name="login_success">Logged in</string>
+    <string name="login_failed">Could not log in</string>
     <string name="logout_title">Log out from %1$s?</string>
     <string name="logout">Log out</string>
     <string name="logout_success">You are now logged out</string>

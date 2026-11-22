@@ -59,6 +59,15 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Fix Hikka being logged out by transient errors
 - Fix library updates hanging on a source that keeps failing to connect, reporting a cancelled update as failed, and not notifying or downloading the chapters found before a stopped update
 - Fix the last library update time being recorded before the update finishes, and metadata refreshes that can't be cancelled, overlap library updates or fail to start silently
+- Fix links opened from other apps or sites logging out of a tracker or logging in to someone else's tracker account
+- Fix extension stores being added over plain HTTP and adopting a changed signing key from their index without asking
+- Fix the app freezing and closing when extension installs take longer than 3 minutes on Android 14 and newer
+- Fix verbose network logs showing cookies and the Kavita API key
+- Fix restoring a backup changing internal app state, like which extensions are trusted, that backups never hold
+- Fix restoring a backup replacing the signing key of an added extension store or adding a store over plain HTTP
+- Fix an invalid date format from a restored backup crashing the app
+- Fix restoring a backup opened from another app failing when the app is closed during the restore
+- Fix WebView reloading its page when a foldable is unfolded or the window is resized
 
 ## [v0.21.3] - 2026-10-26
 ### Added

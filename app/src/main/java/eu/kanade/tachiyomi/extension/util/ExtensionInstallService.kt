@@ -59,6 +59,13 @@ class ExtensionInstallService : Service() {
         return START_NOT_STICKY
     }
 
+    // A short service has about 3 minutes, which a long queue or a pending install confirmation can outlast, and is
+    // declared an ANR if it doesn't stop within seconds of this
+    override fun onTimeout(startId: Int) {
+        logcat(LogPriority.WARN) { "The extension installer timed out" }
+        stopSelf()
+    }
+
     override fun onDestroy() {
         installer?.onDestroy()
         installer = null

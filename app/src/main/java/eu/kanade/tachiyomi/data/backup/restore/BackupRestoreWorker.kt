@@ -27,6 +27,8 @@ import mihon.core.metro.metroGraph
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
+import java.io.File
+import java.io.IOException
 
 class BackupRestoreWorker(private val context: Context, workerParams: WorkerParameters) :
     CoroutineWorker(context, workerParams) {
@@ -51,9 +53,14 @@ class BackupRestoreWorker(private val context: Context, workerParams: WorkerPara
 
         setForegroundSafely()
 
+        // A backup opened from another app can only be read while the app's task lives, but the work is rerun after
+        // the process dies, so it restores from its own copy
+        val backupCopy = File(context.cacheDir, "restore_$id.tachibk")
         return try {
             withContext(Dispatchers.IO) {
-                backupRestorerFactory.create(notifier = notifier, isSync = isSync).restore(uri, options)
+                if (!backupCopy.exists()) copyBackup(uri, backupCopy)
+                backupRestorerFactory.create(notifier = notifier, isSync = isSync)
+                    .restore(backupCopy.toUri(), options)
             }
             Result.success()
         } catch (e: Exception) {
@@ -66,7 +73,19 @@ class BackupRestoreWorker(private val context: Context, workerParams: WorkerPara
                 Result.failure()
             }
         } finally {
+            backupCopy.delete()
             context.cancelNotification(Notifications.ID_RESTORE_PROGRESS)
+        }
+    }
+
+    private fun copyBackup(uri: Uri, to: File) {
+        val partial = File(to.path + ".part")
+        try {
+            val input = context.contentResolver.openInputStream(uri) ?: throw IOException("Can't open $uri")
+            input.use { source -> partial.outputStream().use { source.copyTo(it) } }
+            if (!partial.renameTo(to)) throw IOException("Can't copy the backup to $to")
+        } finally {
+            partial.delete()
         }
     }
 

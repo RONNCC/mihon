@@ -176,8 +176,6 @@ class MangaBaka(
         }
     }
 
-    fun verifyOAuthState(state: String): Boolean = api.verifyOAuthState(state)
-
     override fun logout() {
         super.logout()
         trackPreferences.trackToken(this).delete()

@@ -110,12 +110,14 @@ abstract class Installer(private val service: Service) {
     @CallSuper
     open fun onDestroy() {
         cancelListeners -= cancelListener
-        val remaining = synchronized(queue) { queue.toList().also { queue.clear() } }
+        // The active entry's result can't arrive anymore, so it fails along with the queue
+        val remaining = synchronized(queue) {
+            (listOfNotNull(waitingInstall.exchange(null)) + queue).also { queue.clear() }
+        }
         remaining.forEach {
             logcat(LogPriority.INFO) { "The installer stopped before installing ${it.downloadId}" }
             extensionManager.updateInstallStep(it.downloadId, InstallStep.Error)
         }
-        waitingInstall.store(null)
     }
 
     protected fun getActiveEntry(): Entry? = waitingInstall.load()

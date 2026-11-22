@@ -143,17 +143,26 @@ data object SettingsTrackingScreen : SearchableSettings {
                 preferenceItems = listOf(
                     Preference.PreferenceItem.TrackerPreference(
                         tracker = trackerManager.mangaBaka,
-                        login = { context.openInBrowser(MangaBakaApi.authUrl(), forceDefaultBrowser = true) },
+                        login = {
+                            val state = trackerManager.mangaBaka.oauthLoginState.start()
+                            context.openInBrowser(MangaBakaApi.authUrl(state), forceDefaultBrowser = true)
+                        },
                         logout = { dialog = LogoutDialog(trackerManager.mangaBaka) },
                     ),
                     Preference.PreferenceItem.TrackerPreference(
                         tracker = trackerManager.myAnimeList,
-                        login = { context.openInBrowser(MyAnimeListApi.authUrl(), forceDefaultBrowser = true) },
+                        login = {
+                            val state = trackerManager.myAnimeList.oauthLoginState.start()
+                            context.openInBrowser(MyAnimeListApi.authUrl(state), forceDefaultBrowser = true)
+                        },
                         logout = { dialog = LogoutDialog(trackerManager.myAnimeList) },
                     ),
                     Preference.PreferenceItem.TrackerPreference(
                         tracker = trackerManager.aniList,
-                        login = { context.openInBrowser(AnilistApi.authUrl(), forceDefaultBrowser = true) },
+                        login = {
+                            val state = trackerManager.aniList.oauthLoginState.start()
+                            context.openInBrowser(AnilistApi.authUrl(state), forceDefaultBrowser = true)
+                        },
                         logout = { dialog = LogoutDialog(trackerManager.aniList) },
                     ),
                     Preference.PreferenceItem.TrackerPreference(
@@ -168,22 +177,34 @@ data object SettingsTrackingScreen : SearchableSettings {
                     ),
                     Preference.PreferenceItem.TrackerPreference(
                         tracker = trackerManager.shikimori,
-                        login = { context.openInBrowser(ShikimoriApi.authUrl(), forceDefaultBrowser = true) },
+                        login = {
+                            val state = trackerManager.shikimori.oauthLoginState.start()
+                            context.openInBrowser(ShikimoriApi.authUrl(state), forceDefaultBrowser = true)
+                        },
                         logout = { dialog = LogoutDialog(trackerManager.shikimori) },
                     ),
                     Preference.PreferenceItem.TrackerPreference(
                         tracker = trackerManager.bangumi,
-                        login = { context.openInBrowser(BangumiApi.authUrl(), forceDefaultBrowser = true) },
+                        login = {
+                            val state = trackerManager.bangumi.oauthLoginState.start()
+                            context.openInBrowser(BangumiApi.authUrl(state), forceDefaultBrowser = true)
+                        },
                         logout = { dialog = LogoutDialog(trackerManager.bangumi) },
                     ),
                     Preference.PreferenceItem.TrackerPreference(
                         tracker = trackerManager.hikka,
-                        login = { context.openInBrowser(HikkaApi.authUrl(), forceDefaultBrowser = true) },
+                        login = {
+                            trackerManager.hikka.oauthLoginState.start()
+                            context.openInBrowser(HikkaApi.authUrl(), forceDefaultBrowser = true)
+                        },
                         logout = { dialog = LogoutDialog(trackerManager.hikka) },
                     ),
                     Preference.PreferenceItem.TrackerPreference(
                         tracker = trackerManager.comick,
-                        login = { context.openInBrowser(ComickApi.authUrl(), forceDefaultBrowser = true) },
+                        login = {
+                            val state = trackerManager.comick.oauthLoginState.start()
+                            context.openInBrowser(ComickApi.authUrl(state), forceDefaultBrowser = true)
+                        },
                         logout = { dialog = LogoutDialog(trackerManager.comick) },
                     ),
                     Preference.PreferenceItem.InfoPreference(stringResource(MR.strings.tracking_info)),
