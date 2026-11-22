@@ -65,6 +65,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Fix verbose network logs showing cookies and the Kavita API key
 - Fix restoring a backup changing internal app state, like which extensions are trusted, that backups never hold
 - Fix an invalid date format from a restored backup crashing the app
+- Fix restoring a backup opened from another app failing when the app is closed during the restore
 
 ## [v0.21.3] - 2026-10-26
 ### Added
