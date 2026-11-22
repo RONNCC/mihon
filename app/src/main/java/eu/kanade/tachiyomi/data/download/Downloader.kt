@@ -464,6 +464,8 @@ class Downloader(
         }
 
         val tmpDir = mangaDir.createDirectory(chapterDirname + TMP_DIR_SUFFIX)!!
+        // Before the first page is saved, so gallery apps never index the pages of a download in progress
+        DiskUtil.createNoMediaFile(tmpDir, context)
 
         try {
             // If the page list already exists, start from the file
@@ -532,8 +534,6 @@ class Downloader(
                 check(tmpDir.renameTo(chapterDirname)) { "Could not rename the downloaded chapter to $chapterDirname" }
             }
             cache.addChapter(chapterDirname, mangaDir, download.manga)
-
-            DiskUtil.createNoMediaFile(tmpDir, context)
 
             download.status = Download.State.DOWNLOADED
         } catch (error: Throwable) {
@@ -722,7 +722,7 @@ class Downloader(
     ) {
         val zip = mangaDir.createFile("$dirname.cbz$TMP_DIR_SUFFIX")!!
         ZipWriter(context, zip).use { writer ->
-            tmpDir.listFiles()?.forEach { file ->
+            tmpDir.listFiles()?.filter { it.name != NOMEDIA_FILE }?.forEach { file ->
                 writer.write(file)
             }
         }
