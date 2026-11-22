@@ -173,6 +173,8 @@ class ReaderViewModel(
     private var chapterId = savedState.get<Long>("chapter_id") ?: -1L
         set(value) {
             savedState["chapter_id"] = value
+            downloadManager.releaseChapter(field)
+            downloadManager.holdChapter(value)
             field = value
         }
 
@@ -287,7 +289,7 @@ class ReaderViewModel(
             }
             .run {
                 if (basePreferences.downloadedOnly.get()) {
-                    filterDownloaded(manga, downloadCache)
+                    filterDownloaded(manga, downloadCache, keepChapterId = chapterId)
                 } else {
                     this
                 }
@@ -298,7 +300,17 @@ class ReaderViewModel(
     private var incognitoMode: Boolean = false
     private val downloadAheadAmount = downloadPreferences.autoDownloadWhileReading.get()
 
+    /**
+     * The page to save once the storage permission prompt is answered. Kept here to survive a rotation meanwhile.
+     */
+    var pendingSavePage: ReaderPage? = null
+
+    private var finished = false
+
     init {
+        // Restored from process or activity death, the setter above isn't run
+        if (chapterId != -1L) downloadManager.holdChapter(chapterId)
+
         // To save state
         state.map { it.viewerChapters?.currChapter }
             .distinctUntilChanged()
@@ -328,7 +340,8 @@ class ReaderViewModel(
                 appScope.launch { downloadManager.addDownloadsToStartOfQueue(listOf(it)) }
             }
         }
-        // Also runs when the reader is dismissed without finish(), e.g. swiped away from the recents
+        if (finished) downloadManager.releaseChapter(chapterId)
+        // The current chapter stays pending while the activity may still be restored
         deletePendingChapters()
     }
 
@@ -337,6 +350,8 @@ class ReaderViewModel(
      * trigger deletion of the downloaded chapters.
      */
     fun onActivityFinish() {
+        finished = true
+        downloadManager.releaseChapter(chapterId)
         deletePendingChapters()
     }
 
@@ -436,25 +451,31 @@ class ReaderViewModel(
     }
 
     /**
-     * Called when the user is going to load the prev/next chapter through the toolbar buttons.
+     * Called when the user is going to load the prev/next chapter through the toolbar buttons. Runs on the view model
+     * scope so that a rotation doesn't cancel it, and reports the outcome through an [Event].
      */
-    private suspend fun loadAdjacent(chapter: ReaderChapter) {
+    private fun loadAdjacent(chapter: ReaderChapter) {
         val loader = loader ?: return
 
         logcat { "Loading adjacent ${chapter.chapter.url}" }
 
-        mutableState.update { it.copy(isLoadingAdjacentChapter = true) }
-        try {
-            withContext(Dispatchers.IO) {
-                loadChapter(loader, chapter)
+        viewModelScope.launch {
+            mutableState.update { it.copy(isLoadingAdjacentChapter = true) }
+            val error = try {
+                withContext(Dispatchers.IO) {
+                    loadChapter(loader, chapter)
+                }
+                null
+            } catch (e: Throwable) {
+                if (e is CancellationException) {
+                    throw e
+                }
+                logcat(LogPriority.ERROR, e)
+                e
+            } finally {
+                mutableState.update { it.copy(isLoadingAdjacentChapter = false) }
             }
-        } catch (e: Throwable) {
-            if (e is CancellationException) {
-                throw e
-            }
-            logcat(LogPriority.ERROR, e)
-        } finally {
-            mutableState.update { it.copy(isLoadingAdjacentChapter = false) }
+            eventChannel.send(if (error == null) Event.AdjacentChapterLoaded else Event.AdjacentChapterFailed(error))
         }
     }
 
@@ -763,7 +784,7 @@ class ReaderViewModel(
     /**
      * Called from the activity to load and set the next chapter as active.
      */
-    suspend fun loadNextChapter() {
+    fun loadNextChapter() {
         val nextChapter = state.value.viewerChapters?.nextChapter ?: return
         loadAdjacent(nextChapter)
     }
@@ -771,7 +792,7 @@ class ReaderViewModel(
     /**
      * Called from the activity to load and set the previous chapter as active.
      */
-    suspend fun loadPreviousChapter() {
+    fun loadPreviousChapter() {
         val prevChapter = state.value.viewerChapters?.prevChapter ?: return
         loadAdjacent(prevChapter)
     }
@@ -1123,6 +1144,8 @@ class ReaderViewModel(
     sealed interface Event {
         data object ReloadViewerChapters : Event
         data object PageChanged : Event
+        data object AdjacentChapterLoaded : Event
+        data class AdjacentChapterFailed(val error: Throwable) : Event
         data class SetOrientation(val orientation: Int) : Event
         data class SetCoverResult(val result: SetAsCoverResult) : Event
 

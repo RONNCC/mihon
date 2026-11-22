@@ -128,7 +128,6 @@ class CloudflareInterceptor(
         var challengeFound = false
         var cloudflareBypassed = false
         var challengeFailed = false
-        var isWebViewOutdated = false
         var isRenderProcessGone = false
 
         val origRequestUrl = originalRequest.url.toString()
@@ -232,9 +231,10 @@ class CloudflareInterceptor(
         latch.awaitFor30Seconds()
 
         executor.execute {
-            // Only destroy can be called on a WebView whose renderer is gone
-            if (!cloudflareBypassed && !isRenderProcessGone) {
-                isWebViewOutdated = webview?.isOutdated() == true
+            // Prompt user to update WebView if it seems too outdated. Toasts need the main thread's looper, and only
+            // destroy can be called on a WebView whose renderer is gone.
+            if (!cloudflareBypassed && !isRenderProcessGone && webview?.isOutdated() == true) {
+                context.toast(MR.strings.information_webview_outdated, Toast.LENGTH_LONG)
             }
 
             webview?.run {
@@ -259,11 +259,6 @@ class CloudflareInterceptor(
         if (!cloudflareBypassed) {
             // A clearance from a failed challenge would only be rejected again
             cookieManager.remove(originalRequest.url, COOKIE_NAMES, 0)
-            // Prompt user to update WebView if it seems too outdated
-            if (isWebViewOutdated) {
-                context.toast(MR.strings.information_webview_outdated, Toast.LENGTH_LONG)
-            }
-
             throw CloudflareBypassException()
         }
     }

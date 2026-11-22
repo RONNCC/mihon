@@ -281,9 +281,9 @@ class ReaderActivity : BaseActivity() {
                 )
             }
 
-            // Outside the dialog, which is gone by the time the permission prompt answers
-            var pendingSave by remember { mutableStateOf<ReaderPage?>(null) }
-            val saveImage = rememberSaveImagePermissionRequester { pendingSave?.let(viewModel::saveImage) }
+            val saveImage = rememberSaveImagePermissionRequester {
+                viewModel.pendingSavePage?.let(viewModel::saveImage)
+            }
 
             val onDismissRequest = viewModel::closeDialog
             when (val dialog = state.dialog) {
@@ -323,7 +323,7 @@ class ReaderActivity : BaseActivity() {
                         onSetAsCover = viewModel::setAsCover,
                         onShare = viewModel::shareImage,
                         onSave = {
-                            pendingSave = dialog.page
+                            viewModel.pendingSavePage = dialog.page
                             saveImage()
                         },
                     )
@@ -381,6 +381,12 @@ class ReaderActivity : BaseActivity() {
                     ReaderViewModel.Event.PageChanged -> {
                         displayRefreshHost.flash()
                     }
+                    ReaderViewModel.Event.AdjacentChapterLoaded -> {
+                        moveToPageIndex(0)
+                    }
+                    is ReaderViewModel.Event.AdjacentChapterFailed -> {
+                        toast(event.error.message)
+                    }
                     is ReaderViewModel.Event.SetOrientation -> {
                         setOrientation(event.orientation)
                     }
@@ -406,6 +412,8 @@ class ReaderActivity : BaseActivity() {
      */
     override fun onDestroy() {
         super.onDestroy()
+        // Dismissed from the recents, which doesn't call finish()
+        if (isFinishing) viewModel.onActivityFinish()
         viewer?.destroy()
         menuToggleToast?.cancel()
         readingModeToast?.cancel()
@@ -520,11 +528,11 @@ class ReaderActivity : BaseActivity() {
             Key.DirectionUp, Key.PageUp -> Action.BACKWARD
             Key.Menu -> Action.MENU
             Key.N -> {
-                if (isUp) loadNextChapter()
+                if (isUp) viewModel.loadNextChapter()
                 return true
             }
             Key.P -> {
-                if (isUp) loadPreviousChapter()
+                if (isUp) viewModel.loadPreviousChapter()
                 return true
             }
             else -> return false
@@ -593,9 +601,9 @@ class ReaderActivity : BaseActivity() {
                 }
             },
             verticalNavigatorHeight = verticalNavigatorHeight / 100f,
-            onNextChapter = ::loadNextChapter,
+            onNextChapter = viewModel::loadNextChapter,
             enabledNext = state.viewerChapters?.nextChapter != null,
-            onPreviousChapter = ::loadPreviousChapter,
+            onPreviousChapter = viewModel::loadPreviousChapter,
             enabledPrevious = state.viewerChapters?.prevChapter != null,
             currentPage = state.currentPage,
             totalPages = state.totalPages,
@@ -737,28 +745,6 @@ class ReaderActivity : BaseActivity() {
         val currentChapter = viewModel.state.value.currentChapter ?: return
         val page = currentChapter.pages?.getOrNull(index) ?: return
         viewer.moveToPage(page)
-    }
-
-    /**
-     * Tells the presenter to load the next chapter and mark it as active. The progress dialog
-     * should be automatically shown.
-     */
-    private fun loadNextChapter() {
-        lifecycleScope.launch {
-            viewModel.loadNextChapter()
-            moveToPageIndex(0)
-        }
-    }
-
-    /**
-     * Tells the presenter to load the previous chapter and mark it as active. The progress dialog
-     * should be automatically shown.
-     */
-    private fun loadPreviousChapter() {
-        lifecycleScope.launch {
-            viewModel.loadPreviousChapter()
-            moveToPageIndex(0)
-        }
     }
 
     /**

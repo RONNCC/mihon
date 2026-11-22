@@ -79,22 +79,30 @@ class DownloadPendingDeleter(
     }
 
     /**
-     * Returns the list of chapters to be deleted grouped by its manga.
+     * Returns the list of chapters to be deleted grouped by its manga, except the chapters whose id is in
+     * [keeping], which stay pending.
      *
      * Note: the returned list of manga and chapters only contain basic information needed by the
      * downloader, so don't use them for anything else.
      */
     @Synchronized
-    fun getPendingChapters(): Map<Manga, List<Chapter>> {
+    fun getPendingChapters(keeping: Set<Long> = emptySet()): Map<Manga, List<Chapter>> {
         val entries = decodeAll()
         preferences.edit {
             clear()
+            entries.forEach { entry ->
+                val kept = entry.chapters.filter { it.id in keeping }
+                if (kept.isNotEmpty()) {
+                    putString(entry.manga.id.toString(), json.encodeToString(entry.copy(chapters = kept)))
+                }
+            }
         }
         lastAddedEntry = null
 
-        return entries.associate { (chapters, manga) ->
-            manga.toModel() to chapters.map { it.toModel() }
-        }
+        return entries.mapNotNull { (chapters, manga) ->
+            val pending = chapters.filter { it.id !in keeping }
+            if (pending.isEmpty()) null else manga.toModel() to pending.map { it.toModel() }
+        }.toMap()
     }
 
     /**
