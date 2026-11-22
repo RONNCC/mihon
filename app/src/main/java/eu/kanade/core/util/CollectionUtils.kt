@@ -47,6 +47,21 @@ fun <E> HashSet<E>.addOrRemove(value: E, shouldAdd: Boolean) {
 }
 
 /**
+ * Returns the indices between [index] and the nearest [isSelected] item, exclusive, so that selecting [index]
+ * extends the selection over the items in between. Empty when nothing is selected or [index] is inside the selection.
+ */
+fun <T> List<T>.selectionRangeTo(index: Int, isSelected: (T) -> Boolean): IntRange {
+    val first = indexOfFirst(isSelected)
+    if (first < 0) return IntRange.EMPTY
+    val last = indexOfLast(isSelected)
+    return when {
+        index < first -> index + 1..<first
+        index > last -> last + 1..<index
+        else -> IntRange.EMPTY
+    }
+}
+
+/**
  * Returns a list containing all elements not matching the given [predicate].
  *
  * **Do not use for collections that come from public APIs**, since they may not support random

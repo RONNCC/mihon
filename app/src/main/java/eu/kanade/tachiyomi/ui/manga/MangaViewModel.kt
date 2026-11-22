@@ -22,6 +22,7 @@ import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import eu.kanade.core.preference.asState
 import eu.kanade.core.util.addOrRemove
 import eu.kanade.core.util.insertSeparators
+import eu.kanade.core.util.selectionRangeTo
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.domain.chapter.interactor.GetAvailableScanlators
 import eu.kanade.domain.chapter.interactor.SetReadStatus
@@ -186,7 +187,6 @@ class MangaViewModel(
     val isUpdateIntervalEnabled =
         LibraryPreferences.MANGA_OUTSIDE_RELEASE_PERIOD in libraryPreferences.autoUpdateMangaRestrictions.get()
 
-    private val selectedPositions: Array<Int> = arrayOf(-1, -1) // first and last selected index in list
     private val selectedChapterIds = MutableStateFlow(emptySet<Long>())
 
     private val dialog = MutableStateFlow<Dialog?>(null)
@@ -1004,58 +1004,24 @@ class MangaViewModel(
         val selectedIds = HashSet(selectedChapterIds.value)
         if ((item.id in selectedIds) == selected) return
 
-        val firstSelection = chapters.none { it.id in selectedIds }
-        selectedIds.addOrRemove(item.id, selected)
-
         if (selected && fromLongPress) {
-            if (firstSelection) {
-                selectedPositions[0] = selectedIndex
-                selectedPositions[1] = selectedIndex
-            } else {
-                // Try to select the items in-between when possible
-                val range: IntRange
-                if (selectedIndex < selectedPositions[0]) {
-                    range = selectedIndex + 1..<selectedPositions[0]
-                    selectedPositions[0] = selectedIndex
-                } else if (selectedIndex > selectedPositions[1]) {
-                    range = (selectedPositions[1] + 1)..<selectedIndex
-                    selectedPositions[1] = selectedIndex
-                } else {
-                    // Just select itself
-                    range = IntRange.EMPTY
-                }
-
-                range.forEach { selectedIds.add(chapters[it].id) }
-            }
-        } else if (!fromLongPress) {
-            if (!selected) {
-                if (selectedIndex == selectedPositions[0]) {
-                    selectedPositions[0] = chapters.indexOfFirst { it.id in selectedIds }
-                } else if (selectedIndex == selectedPositions[1]) {
-                    selectedPositions[1] = chapters.indexOfLast { it.id in selectedIds }
-                }
-            } else {
-                if (selectedIndex < selectedPositions[0]) {
-                    selectedPositions[0] = selectedIndex
-                } else if (selectedIndex > selectedPositions[1]) {
-                    selectedPositions[1] = selectedIndex
-                }
-            }
+            // Try to select the items in-between when possible
+            chapters.selectionRangeTo(selectedIndex) { it.id in selectedIds }
+                .forEach { selectedIds.add(chapters[it].id) }
         }
+        selectedIds.addOrRemove(item.id, selected)
         selectedChapterIds.value = selectedIds
     }
 
     fun toggleAllSelection(selected: Boolean) {
-        selectedChapterIds.value = if (selected) allChapters.orEmpty().mapTo(HashSet()) { it.id } else emptySet()
-        selectedPositions[0] = -1
-        selectedPositions[1] = -1
+        selectedChapterIds.value = if (selected) filteredChapters.orEmpty().mapTo(HashSet()) { it.id } else emptySet()
     }
 
     fun invertSelection() {
         val selectedIds = selectedChapterIds.value
-        selectedChapterIds.value = allChapters.orEmpty().filterNot { it.id in selectedIds }.mapTo(HashSet()) { it.id }
-        selectedPositions[0] = -1
-        selectedPositions[1] = -1
+        selectedChapterIds.value = filteredChapters.orEmpty()
+            .filterNot { it.id in selectedIds }
+            .mapTo(HashSet()) { it.id }
     }
 
     // Chapters list - end
@@ -1133,7 +1099,7 @@ class MangaViewModel(
             }
 
             val isAnySelected by lazy {
-                chapters.fastAny { it.selected }
+                processedChapters.fastAny { it.selected }
             }
 
             val selectedChapters by lazy {
