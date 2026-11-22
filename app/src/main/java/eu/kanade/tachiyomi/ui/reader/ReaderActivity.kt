@@ -385,7 +385,7 @@ class ReaderActivity : BaseActivity() {
                         moveToPageIndex(0)
                     }
                     is ReaderViewModel.Event.AdjacentChapterFailed -> {
-                        toast(event.error.message)
+                        toast(event.error.message ?: event.error.toString())
                     }
                     is ReaderViewModel.Event.SetOrientation -> {
                         setOrientation(event.orientation)
