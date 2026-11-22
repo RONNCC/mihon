@@ -41,9 +41,16 @@ class LocalCoverManager(
 
         val targetFile = find(manga.url) ?: directory.createFile(DEFAULT_COVER_NAME)!!
 
+        // Opened before the try, as a failed open leaves an existing cover intact
+        val outputStream = try {
+            targetFile.openOutputStream()
+        } catch (e: Throwable) {
+            inputStream.close()
+            throw e
+        }
         try {
             inputStream.use { input ->
-                targetFile.openOutputStream().use { output ->
+                outputStream.use { output ->
                     input.copyTo(output)
                 }
             }
