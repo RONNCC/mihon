@@ -8,6 +8,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -51,7 +52,7 @@ class DefaultCategoryRetentionTest {
             mockk(), provider, cache, getCategories, mockk(), mockk(), mockk(), preferences, downloader, pending,
         )
 
-        manager.deleteChapters(listOf(chapter), manga, source)
+        manager.deleteReadChapters(listOf(chapter), manga, source)
         val calls = if (shouldDelete) 1 else 0
         coVerify(exactly = calls) { provider.findChapterDirs(any(), any(), any()) }
         coVerify(exactly = calls) { downloader.dequeue(any()) }
@@ -60,6 +61,32 @@ class DefaultCategoryRetentionTest {
 
         manager.enqueueChaptersToDelete(listOf(chapter), manga)
         verify { pending.addChapters(if (shouldDelete) listOf(chapter) else emptyList(), manga) }
+    }
+
+    @Test
+    fun `deleting chapters explicitly ignores the exclusions`() = runTest {
+        val preferences = DownloadPreferences(InMemoryPreferenceStore())
+        preferences.removeExcludeCategories.set(setOf("4"))
+        preferences.removeBookmarkedChapters.set(false)
+        val getCategories = mockk<GetCategories>()
+        val provider = mockk<DownloadProvider>()
+        val manga = Manga.create().copy(id = 101, source = 202, title = "Synthetic retention")
+        val chapter = Chapter.create().copy(id = 303, mangaId = manga.id, read = true, bookmark = true)
+        val source = mockk<Source>()
+        val chapterDir = mockk<UniFile>()
+        val mangaDir = mockk<UniFile>()
+        coEvery { getCategories.await(manga.id) } returns listOf(Category(4, "Keep", 0, 0))
+        coEvery { provider.findChapterDirs(listOf(chapter), manga, source) } returns (mangaDir to listOf(chapterDir))
+        every { chapterDir.delete() } returns true
+        every { mangaDir.listFiles() } returns arrayOf(mockk())
+        val manager = DownloadManager(
+            mockk(), provider, mockk(relaxed = true), getCategories, mockk(), mockk(), mockk(), preferences,
+            mockk(relaxed = true), mockk(relaxed = true),
+        )
+
+        manager.deleteChapters(listOf(chapter), manga, source)
+
+        verify(exactly = 1) { chapterDir.delete() }
     }
 
     companion object {
