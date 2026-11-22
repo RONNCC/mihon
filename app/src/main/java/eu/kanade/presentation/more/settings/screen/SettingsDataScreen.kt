@@ -47,6 +47,7 @@ import eu.kanade.tachiyomi.data.backup.create.BackupCreateWorker
 import eu.kanade.tachiyomi.data.backup.restore.BackupRestoreWorker
 import eu.kanade.tachiyomi.data.export.LibraryExporter
 import eu.kanade.tachiyomi.data.export.LibraryExporter.ExportOptions
+import eu.kanade.tachiyomi.util.storage.releaseStalePersistedPermissions
 import eu.kanade.tachiyomi.util.system.DeviceUtil
 import eu.kanade.tachiyomi.util.system.toast
 import eu.kanade.tachiyomi.util.system.workManager
@@ -137,6 +138,8 @@ data object SettingsDataScreen : SearchableSettings {
 
                 UniFile.fromUri(context, uri)?.let {
                     storageDirPref.set(it.uri.toString())
+                    // The folder this replaced keeps its permission otherwise
+                    context.contentResolver.releaseStalePersistedPermissions(it.uri)
                 }
             }
         }
@@ -203,6 +206,10 @@ data object SettingsDataScreen : SearchableSettings {
             } catch (e: SecurityException) {
                 logcat(LogPriority.ERROR, e)
             }
+
+            context.contentResolver.releaseStalePersistedPermissions(
+                context.appGraph.storagePreferences.baseStorageDirectory.get().toUri(),
+            )
 
             navigator.push(RestoreBackupRoute(it.toString()))
         }
