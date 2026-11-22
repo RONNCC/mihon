@@ -171,7 +171,7 @@
 
         <activity
             android:name=".ui.webview.WebViewActivity"
-            android:configChanges="uiMode|orientation|screenSize"
+            android:configChanges="uiMode|orientation|screenSize|smallestScreenSize|screenLayout"
             android:exported="false" />
 
         <activity

@@ -66,6 +66,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Fix restoring a backup changing internal app state, like which extensions are trusted, that backups never hold
 - Fix an invalid date format from a restored backup crashing the app
 - Fix restoring a backup opened from another app failing when the app is closed during the restore
+- Fix WebView reloading its page when a foldable is unfolded or the window is resized
 
 ## [v0.21.3] - 2026-10-26
 ### Added
