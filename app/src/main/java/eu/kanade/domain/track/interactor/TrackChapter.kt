@@ -39,19 +39,31 @@ class TrackChapter(
 
             tracks.mapNotNull { track ->
                 val service = trackerManager.get(track.trackerId)
-                if (service == null || !service.isLoggedIn || chapterNumber <= track.lastChapterRead) {
+                if (service == null) {
+                    delayedTrackingStore.remove(track.id)
                     return@mapNotNull null
                 }
+                if (chapterNumber <= track.lastChapterRead) {
+                    delayedTrackingStore.removeIfCovered(track.id, track.lastChapterRead)
+                    return@mapNotNull null
+                }
+                if (!service.isLoggedIn) return@mapNotNull null
 
                 async {
                     runCatching {
                         try {
-                            val updatedTrack = service.refresh(track.toDbTrack())
+                            val refreshedTrack = service.refresh(track.toDbTrack())
                                 .toDomainTrack(idRequired = true)!!
-                                .copy(lastChapterRead = chapterNumber)
+                            // The remote may be ahead of the local copy, e.g. after reading on another device
+                            if (chapterNumber <= refreshedTrack.lastChapterRead) {
+                                upsertTrack.await(refreshedTrack)
+                                delayedTrackingStore.removeIfCovered(track.id, refreshedTrack.lastChapterRead)
+                                return@runCatching
+                            }
+                            val updatedTrack = refreshedTrack.copy(lastChapterRead = chapterNumber)
                             service.update(updatedTrack.toDbTrack(), true)
                             upsertTrack.await(updatedTrack)
-                            delayedTrackingStore.remove(track.id)
+                            delayedTrackingStore.removeIfCovered(track.id, chapterNumber)
                         } catch (e: Exception) {
                             delayedTrackingStore.add(track.id, chapterNumber)
                             if (setupJobOnFailure) {

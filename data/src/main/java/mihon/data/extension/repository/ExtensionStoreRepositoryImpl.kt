@@ -6,7 +6,6 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
-import eu.kanade.tachiyomi.extension.model.Extension
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -20,12 +19,14 @@ import kotlinx.coroutines.supervisorScope
 import logcat.LogPriority
 import mihon.core.metro.AppCoroutineScope
 import mihon.data.extension.service.ExtensionStoreService
+import mihon.domain.extension.model.ExtensionListing
 import mihon.domain.extension.model.ExtensionStore
 import mihon.domain.extension.repository.ExtensionStoreRepository
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.data.Database
 import tachiyomi.data.subscribeToList
 import tachiyomi.data.subscribeToOne
+import java.io.IOException
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -111,25 +112,27 @@ class ExtensionStoreRepositoryImpl(
         )
     }
 
-    override suspend fun fetchExtensions(): List<Extension.Available> {
-        return try {
-            supervisorScope {
-                database.extension_storeQueries.getAll(::extensionStoreMapper).awaitAsList().map { store ->
-                    async {
-                        service.getExtensions(store).onFailure {
-                            this@ExtensionStoreRepositoryImpl.logcat(LogPriority.ERROR, it) {
-                                "Failed to fetch extensions for store '${store.name} (${store.indexUrl})'"
-                            }
+    override suspend fun fetchExtensions(): ExtensionListing {
+        val stores = database.extension_storeQueries.getAll(::extensionStoreMapper).awaitAsList()
+        val results = supervisorScope {
+            stores.map { store ->
+                async {
+                    service.getExtensions(store).onFailure {
+                        this@ExtensionStoreRepositoryImpl.logcat(LogPriority.ERROR, it) {
+                            "Failed to fetch extensions for store '${store.name} (${store.indexUrl})'"
                         }
                     }
                 }
-                    .awaitAll()
-                    .flatMap { it.getOrDefault(emptyList()) }
             }
-        } catch (e: Exception) {
-            logcat(LogPriority.ERROR, e)
-            emptyList()
+                .awaitAll()
         }
+        if (stores.isNotEmpty() && results.all { it.isFailure }) {
+            throw IOException("None of the extension stores could be reached", results.first().exceptionOrNull())
+        }
+        return ExtensionListing(
+            extensions = results.flatMap { it.getOrDefault(emptyList()) },
+            unreachableStores = stores.filterIndexed { index, _ -> results[index].isFailure },
+        )
     }
 
     override suspend fun getAll(): List<ExtensionStore> {

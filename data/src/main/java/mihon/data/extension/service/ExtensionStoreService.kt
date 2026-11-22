@@ -34,7 +34,7 @@ class ExtensionStoreService(
 ) {
     suspend fun fetch(indexUrl: String): Result<ExtensionStore> = withContext(Dispatchers.IO) { fetchStore(indexUrl) }
 
-    private suspend fun fetchStore(indexUrl: String): Result<ExtensionStore> {
+    private suspend fun fetchStore(indexUrl: String, followIndexV2: Boolean = true): Result<ExtensionStore> {
         var updatedIndexUrl: String = indexUrl
         return try {
             val response = network.client.newCall(GET(updatedIndexUrl)).awaitSuccess()
@@ -59,8 +59,9 @@ class ExtensionStoreService(
                     else -> protoBuf.decodeFromByteArray<NetworkExtensionStore>(source.readByteArray())
                 }
 
-                if (networkStore is NetworkLegacyExtensionRepo && networkStore.indexV2 != null) {
-                    return fetchStore(networkStore.indexV2)
+                // Followed once, so an index_v2 pointing back at a legacy repo can't loop
+                if (followIndexV2 && networkStore is NetworkLegacyExtensionRepo && networkStore.indexV2 != null) {
+                    return fetchStore(networkStore.indexV2, followIndexV2 = false)
                 }
 
                 networkStore.toExtensionStore(updatedIndexUrl)
@@ -106,7 +107,7 @@ class ExtensionStoreService(
                 val response = network.client.newCall(GET("$storeBaseUrl/index.min.json")).awaitSuccess()
                 response.body.source().use { source ->
                     json.decodeFromBufferedSource<List<NetworkLegacyExtension>>(source)
-                        .map { it.toAvailableExtension(store, storeBaseUrl) }
+                        .mapNotNull { it.toAvailableExtension(store, storeBaseUrl) }
                 }
             }
             Result.success(extensions)

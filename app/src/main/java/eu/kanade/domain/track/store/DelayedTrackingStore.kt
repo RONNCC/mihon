@@ -33,6 +33,16 @@ class DelayedTrackingStore(context: Context) {
         }
     }
 
+    /**
+     * Removes the queued update only when it's not ahead of [upTo], as it holds the highest chapter that failed to
+     * send, which may be further than the chapter being tracked now.
+     */
+    fun removeIfCovered(trackId: Long, upTo: Double) {
+        if (preferences.getFloat(trackId.toString(), Float.MAX_VALUE) <= upTo.toFloat()) {
+            remove(trackId)
+        }
+    }
+
     fun getItems(): List<DelayedTrackingItem> {
         return preferences.all.mapNotNull {
             DelayedTrackingItem(

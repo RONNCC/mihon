@@ -3,8 +3,10 @@ package mihon.data.extension.model
 import android.annotation.SuppressLint
 import eu.kanade.tachiyomi.extension.model.Extension
 import kotlinx.serialization.Serializable
+import logcat.LogPriority
 import mihon.domain.extension.model.ContentWarning
 import mihon.domain.extension.model.ExtensionStore
+import tachiyomi.core.common.util.system.logcat
 
 @SuppressLint("UnsafeOptInUsageError")
 @Serializable
@@ -26,13 +28,17 @@ data class NetworkLegacyExtension(
         val baseUrl: String,
     )
 
-    fun toAvailableExtension(store: ExtensionStore, storeBaseUrl: String): Extension.Available {
+    fun toAvailableExtension(store: ExtensionStore, storeBaseUrl: String): Extension.Available? {
+        val libVersion = version.substringBeforeLast('.').toDoubleOrNull() ?: run {
+            logcat(LogPriority.WARN) { "Skipping '$pkg' with version '$version'" }
+            return null
+        }
         return Extension.Available(
             name = name.substringAfter("Tachiyomi: "),
             pkgName = pkg,
             apkUrl = "$storeBaseUrl/apk/$apk",
             iconUrl = "$storeBaseUrl/icon/$pkg.png",
-            libVersion = version.substringBeforeLast('.').toDouble(),
+            libVersion = libVersion,
             versionCode = code,
             versionName = version,
             lang = lang,
