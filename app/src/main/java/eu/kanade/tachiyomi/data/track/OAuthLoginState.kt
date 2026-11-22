@@ -23,11 +23,12 @@ class OAuthLoginState(
         return state
     }
 
-    /** Ends the pending login if [state] is the one it was started with. */
-    fun finish(state: String?): Boolean = finish { it == state }
-
-    /** Ends the pending login, for providers that don't send the `state` back. */
-    fun finishWithoutState(): Boolean = finish { true }
+    /**
+     * Ends the pending login if [state] is the one it was started with. Without [requireState], for providers that
+     * don't or might not send it back, a missing state is accepted as well, but a wrong one never is.
+     */
+    fun finish(state: String?, requireState: Boolean = true): Boolean =
+        finish { it == state || (!requireState && state == null) }
 
     private fun finish(matches: (String) -> Boolean): Boolean {
         val (pendingState, expiresAt) = preference.get().split(' ').takeIf { it.size == 2 } ?: return false

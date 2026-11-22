@@ -15,7 +15,7 @@ class OAuthLoginStateTest {
     fun `A result without a pending login is rejected`() {
         loginState.finish("state") shouldBe false
         loginState.finish(null) shouldBe false
-        loginState.finishWithoutState() shouldBe false
+        loginState.finish(null, requireState = false) shouldBe false
     }
 
     @Test
@@ -56,10 +56,18 @@ class OAuthLoginStateTest {
     }
 
     @Test
-    fun `A provider that doesn't send the state back needs a pending login`() {
+    fun `Without requiring the state a missing one is accepted once while a login is pending`() {
         loginState.start()
 
-        loginState.finishWithoutState() shouldBe true
-        loginState.finishWithoutState() shouldBe false
+        loginState.finish(null, requireState = false) shouldBe true
+        loginState.finish(null, requireState = false) shouldBe false
+    }
+
+    @Test
+    fun `Without requiring the state a wrong one is still rejected`() {
+        val state = loginState.start()
+
+        loginState.finish("attacker", requireState = false) shouldBe false
+        loginState.finish(state, requireState = false) shouldBe true
     }
 }

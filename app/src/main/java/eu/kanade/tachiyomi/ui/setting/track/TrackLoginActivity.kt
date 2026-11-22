@@ -5,7 +5,6 @@ import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import eu.kanade.tachiyomi.data.track.BaseTracker
 import eu.kanade.tachiyomi.data.track.comick.ComickMissingScopesException
-import eu.kanade.tachiyomi.data.track.hikka.Hikka
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.coroutines.launch
 import logcat.LogPriority
@@ -31,14 +30,18 @@ class TrackLoginActivity : BaseOAuthLoginActivity() {
 
         lifecycleScope.launch {
             with(trackerManager) {
+                // Hikka doesn't send the state back, and AniList and Bangumi aren't known to always do, e.g. when the
+                // user has to sign in first, so for them a pending login is enough
                 when (uri.host) {
-                    "anilist-auth" -> login(aniList, data["access_token"], state) { aniList.login(it) }
+                    "anilist-auth" -> login(aniList, data["access_token"], state, requireState = false) {
+                        aniList.login(it)
+                    }
                     "comick-auth" -> login(comick, data["code"], state) { loginComick(it) }
-                    "bangumi-auth" -> login(bangumi, data["code"], state) { bangumi.login(it) }
+                    "bangumi-auth" -> login(bangumi, data["code"], state, requireState = false) { bangumi.login(it) }
                     "mangabaka-auth" -> login(mangaBaka, data["code"], state) { mangaBaka.login(it) }
                     "myanimelist-auth" -> login(myAnimeList, data["code"], state) { myAnimeList.login(it) }
                     "shikimori-auth" -> login(shikimori, data["code"], state) { shikimori.login(it) }
-                    "hikka-auth" -> login(hikka, data["reference"], state) { hikka.login(it) }
+                    "hikka-auth" -> login(hikka, data["reference"], state, requireState = false) { hikka.login(it) }
                 }
             }
             returnToSettings()
@@ -53,18 +56,12 @@ class TrackLoginActivity : BaseOAuthLoginActivity() {
         tracker: BaseTracker,
         code: String?,
         state: String?,
+        requireState: Boolean = true,
         loginWith: suspend (String) -> Unit,
     ) {
-        if (code != null) {
-            val answersPendingLogin = when (tracker) {
-                // Hikka doesn't send the state back
-                is Hikka -> tracker.oauthLoginState.finishWithoutState()
-                else -> tracker.oauthLoginState.finish(state)
-            }
-            if (answersPendingLogin) {
-                loginWith(code)
-                return
-            }
+        if (code != null && tracker.oauthLoginState.finish(state, requireState)) {
+            loginWith(code)
+            return
         }
         logcat(LogPriority.WARN) { "Ignored a ${tracker.name} login result without a code or a pending login" }
         toast(MR.strings.login_failed)
