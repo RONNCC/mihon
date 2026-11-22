@@ -13,4 +13,9 @@ data class ExtensionStore(
         val website: String,
         val discord: String?,
     )
+
+    companion object {
+        /** Stores that were carried over or restored have no key until their index is first fetched over HTTPS. */
+        const val NO_SIGNING_KEY = "NO_SIGNING_KEY"
+    }
 }

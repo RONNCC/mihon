@@ -63,7 +63,7 @@ class ExtensionStoreRepositoryImpl(
             indexUrl = indexUrl,
             name = name,
             badgeLabel = name,
-            signingKey = NO_SIGNING_KEY,
+            signingKey = ExtensionStore.NO_SIGNING_KEY,
             contactWebsite = indexUrl,
             contactDiscord = null,
             isLegacy = false,
@@ -86,7 +86,7 @@ class ExtensionStoreRepositoryImpl(
             // Whoever can change the index could otherwise get any apk trusted, so a new key needs the user to add
             // the store again
             val (keyChanged, refreshed) = fetched.partition { (store, refreshed) ->
-                store.signingKey != NO_SIGNING_KEY && store.signingKey != refreshed.signingKey
+                store.signingKey != ExtensionStore.NO_SIGNING_KEY && store.signingKey != refreshed.signingKey
             }
             keyChanged.forEach { (store, _) ->
                 logcat(LogPriority.WARN) {
@@ -186,9 +186,4 @@ class ExtensionStoreRepositoryImpl(
         isLegacy = isLegacy,
         extensionListUrl = extensionListUrl,
     )
-
-    private companion object {
-        /** Stores carried over from the old preference have no key until their index is first fetched. */
-        const val NO_SIGNING_KEY = "NO_SIGNING_KEY"
-    }
 }
