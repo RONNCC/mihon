@@ -1,6 +1,5 @@
 package eu.kanade.presentation.more.settings.screen
 
-import android.app.Activity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
@@ -8,7 +7,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
-import androidx.core.app.ActivityCompat
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.domain.ui.model.TabletUiMode
 import eu.kanade.domain.ui.model.ThemeMode
@@ -53,8 +51,6 @@ data object SettingsAppearanceScreen : SearchableSettings {
     private fun getThemeGroup(
         uiPreferences: UiPreferences,
     ): Preference.PreferenceGroup {
-        val context = LocalContext.current
-
         val themeModePref = uiPreferences.themeMode
         val themeMode by themeModePref.collectAsState()
 
@@ -90,10 +86,6 @@ data object SettingsAppearanceScreen : SearchableSettings {
                     preference = amoledPref,
                     title = stringResource(MR.strings.pref_dark_theme_pure_black),
                     visible = themeMode != ThemeMode.LIGHT,
-                    onValueChanged = {
-                        (context as? Activity)?.let { ActivityCompat.recreate(it) }
-                        true
-                    },
                 ),
             ),
         )
