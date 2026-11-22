@@ -15,6 +15,8 @@ import tachiyomi.core.common.preference.Preference
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.preference.getEnum
 import tachiyomi.core.common.util.system.logcat
+import java.time.DateTimeException
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeFormatterBuilder
 import java.time.format.FormatStyle
@@ -50,9 +52,19 @@ class UiPreferences(
     val imagesInDescription: Preference<Boolean> = preferenceStore.getBoolean("pref_render_images_description", true)
 
     companion object {
-        fun dateFormat(format: String, locale: Locale): DateTimeFormatter = when (format) {
-            "" -> DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT).withLocale(locale)
-            else -> DateTimeFormatter.ofPattern(format, locale)
+        fun dateFormat(format: String, locale: Locale): DateTimeFormatter {
+            val default = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT).withLocale(locale)
+            if (format.isEmpty()) return default
+            // The setting only offers valid patterns, but a restored backup can hold anything
+            return try {
+                DateTimeFormatter.ofPattern(format, locale).also { it.format(LocalDate.of(2000, 1, 1)) }
+            } catch (e: IllegalArgumentException) {
+                logcat(LogPriority.ERROR, e) { "Invalid date format '$format', using the default" }
+                default
+            } catch (e: DateTimeException) {
+                logcat(LogPriority.ERROR, e) { "Invalid date format '$format', using the default" }
+                default
+            }
         }
 
         fun timeFormat(timeFormat: TimeFormat, locale: Locale, is24HourSystem: Boolean): DateTimeFormatter {

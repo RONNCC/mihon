@@ -64,6 +64,7 @@ The format is a modified version of [Keep a Changelog](https://keepachangelog.co
 - Fix the app freezing and closing when extension installs take longer than 3 minutes on Android 14 and newer
 - Fix verbose network logs showing cookies and the Kavita API key
 - Fix restoring a backup changing internal app state, like which extensions are trusted, that backups never hold
+- Fix an invalid date format from a restored backup crashing the app
 
 ## [v0.21.3] - 2026-10-26
 ### Added
