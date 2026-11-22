@@ -8,6 +8,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.SystemBarStyle
@@ -126,6 +127,7 @@ import tachiyomi.core.common.util.system.logcat
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.screens.LoadingScreen
 import tachiyomi.presentation.core.util.collectAsState
+import kotlin.math.min
 
 class ReaderActivity : BaseActivity() {
 
@@ -884,7 +886,9 @@ class ReaderActivity : BaseActivity() {
                 value / 100f
             }
             value < 0 -> {
-                0.01f
+                // The system brightness can be lower than this minimum, which would then brighten the screen
+                val systemBrightness = Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, 255)
+                min(systemBrightness / 255f, 0.01f)
             }
             else -> WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
         }
