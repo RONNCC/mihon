@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.library.components.CommonMangaItemDefaults
@@ -35,19 +36,22 @@ fun GlobalSearchCardRow(
         return
     }
 
-    LazyRow(
-        contentPadding = PaddingValues(MaterialTheme.padding.small),
-        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.extraSmall),
-    ) {
-        items(titles) {
-            val title by getManga(it)
-            MangaItem(
-                title = title.title,
-                cover = title.asMangaCover(),
-                isFavorite = title.favorite,
-                onClick = { onClick(title) },
-                onLongClick = { onLongClick(title) },
-            )
+    // A new search must start from the first title instead of keeping the previous scroll position
+    key(titles) {
+        LazyRow(
+            contentPadding = PaddingValues(MaterialTheme.padding.small),
+            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.extraSmall),
+        ) {
+            items(titles) {
+                val title by getManga(it)
+                MangaItem(
+                    title = title.title,
+                    cover = title.asMangaCover(),
+                    isFavorite = title.favorite,
+                    onClick = { onClick(title) },
+                    onLongClick = { onLongClick(title) },
+                )
+            }
         }
     }
 }
