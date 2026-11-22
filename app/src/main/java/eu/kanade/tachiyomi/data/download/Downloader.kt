@@ -110,16 +110,22 @@ class Downloader(
         get() = downloaderJob?.isActive ?: false
 
     /**
-     * Whether the downloader is paused
+     * Whether the downloads are held back until they're started, either by the user or because they were queued
+     * before the app was killed. Queuing chapters doesn't start them while it's set.
      */
     @Volatile
     var isPaused: Boolean = false
 
-    init {
-        scope.launch(Dispatchers.Main, CoroutineStart.UNDISPATCHED) {
-            addAllToQueue(withContext(Dispatchers.IO) { store.restore() })
-        }
+    // The restore waits for the sources to load, so a start has to wait for it too or it finds the queue empty
+    private val restoreJob = scope.launch(Dispatchers.Main, CoroutineStart.UNDISPATCHED) {
+        val restored = withContext(Dispatchers.IO) { store.restore() }
+        addAllToQueue(restored)
+        // Whether the user had paused isn't known anymore. A worker that WorkManager reruns or has waiting for the
+        // network starts the queue, and queuing chapters shouldn't set off one left behind by a pause.
+        if (restored.isNotEmpty() && !isRunning) isPaused = true
     }
+
+    suspend fun awaitRestore() = restoreJob.join()
 
     /**
      * Starts the downloader. It doesn't do anything if it's already running or there isn't anything
@@ -127,7 +133,16 @@ class Downloader(
      *
      * @return true if the downloader is started, false otherwise.
      */
-    suspend fun start(): Boolean = lock.withLock { startLocked() }
+    suspend fun start(): Boolean {
+        awaitRestore()
+        return lock.withLock { startLocked() }
+    }
+
+    /**
+     * Halts the downloads without a notification, keeping them queued for [start], for a connection that may be
+     * back in a moment.
+     */
+    suspend fun suspendDownloads() = lock.withLock { pauseLocked() }
 
     /**
      * Stops the downloader.
@@ -149,6 +164,7 @@ class Downloader(
      */
     suspend fun pause() = lock.withLock {
         pauseLocked()
+        isPaused = true
         stopLocked()
     }
 
@@ -159,6 +175,7 @@ class Downloader(
         cancelDownloaderJob()
 
         internalClearQueue()
+        isPaused = false
         notifier.dismissProgress()
     }
 
@@ -193,8 +210,6 @@ class Downloader(
         } else {
             notifier.onComplete()
         }
-
-        isPaused = false
     }
 
     private fun pauseLocked() {
@@ -202,7 +217,6 @@ class Downloader(
         queueState.value
             .filter { it.status == Download.State.DOWNLOADING }
             .forEach { it.status = Download.State.QUEUE }
-        isPaused = true
     }
 
     /**
@@ -375,7 +389,7 @@ class Downloader(
             addAllToQueue(chaptersToQueue)
 
             // Start downloader if needed
-            if (autoStart && wasEmpty) {
+            if (autoStart && !isRunning && (wasEmpty || !isPaused)) {
                 val queuedDownloads = queueState.value.count { it.source !is UnmeteredSource }
                 val maxDownloadsFromSource = queueState.value
                     .groupBy { it.source }
@@ -459,6 +473,12 @@ class Downloader(
                 reIndexedPages
             }
 
+            // A page list that differs from the one an earlier attempt started with leaves files that would
+            // otherwise make the chapter fail the page count check on every retry, or end up in its archive
+            val files = tmpDir.listFiles().orEmpty()
+            val staleFileNames = staleChapterFileNames(files.mapNotNull { it.name }, pageList.size).toSet()
+            files.filter { it.name in staleFileNames }.forEach { it.delete() }
+
             download.status = Download.State.DOWNLOADING
 
             // Start downloading images, consider we can have downloaded images already
@@ -502,7 +522,7 @@ class Downloader(
             if (downloadPreferences.saveChaptersAsCBZ.get()) {
                 archiveChapter(mangaDir, chapterDirname, tmpDir)
             } else {
-                tmpDir.renameTo(chapterDirname)
+                check(tmpDir.renameTo(chapterDirname)) { "Could not rename the downloaded chapter to $chapterDirname" }
             }
             cache.addChapter(chapterDirname, mangaDir, download.manga)
 
@@ -531,8 +551,7 @@ class Downloader(
             return
         }
 
-        val digitCount = (download.pages?.size ?: 0).toString().length.coerceAtLeast(3)
-        val filename = "%0${digitCount}d".format(Locale.ENGLISH, page.number)
+        val filename = pageFilePrefix(page.number, download.pages?.size ?: 0)
 
         // Try to find the image file
         val imageFile = tmpDir.listFiles()?.firstOrNull {
@@ -584,7 +603,7 @@ class Downloader(
                         stream = file.openOutputStream(it.code == 206),
                     )
                     val extension = getImageExtension(it, file)
-                    file.renameTo("$filename.$extension")
+                    check(file.renameTo("$filename.$extension")) { "Could not rename downloaded page $filename" }
                 }
             } catch (e: HttpException) {
                 if (e.code == 416) {
@@ -625,7 +644,8 @@ class Downloader(
         } ?: return null
         chapterCache.removeImage(imageUrl)
         val extension = tmpFile.openInputStream().use { ImageUtil.findImageType(it) } ?: return tmpFile
-        tmpFile.renameTo("$filename.${extension.extension}")
+        val renamed = tmpFile.renameTo("$filename.${extension.extension}")
+        check(renamed) { "Could not rename cached page $filename" }
         return tmpFile
     }
 
@@ -699,7 +719,7 @@ class Downloader(
                 writer.write(file)
             }
         }
-        zip.renameTo("$dirname.cbz")
+        check(zip.renameTo("$dirname.cbz")) { "Could not rename the archive of $dirname" }
         tmpDir.delete()
     }
 
@@ -779,14 +799,7 @@ class Downloader(
         }
     }
 
-    private fun removeFromQueue(chapters: List<Chapter>) {
-        val chapterIds = chapters.map { it.id }
-        removeFromQueueIf { it.chapter.id in chapterIds }
-    }
-
-    suspend fun removeFromQueue(manga: Manga) = lock.withLock {
-        removeFromQueueIf { it.manga.id == manga.id }
-    }
+    suspend fun removeFromQueue(manga: Manga) = dequeueIf { it.manga.id == manga.id }
 
     private fun internalClearQueue() {
         _queueState.update {
@@ -826,8 +839,24 @@ class Downloader(
     /**
      * Removes [chapters] from the queue, keeping the state of the downloads that stay.
      */
-    suspend fun dequeue(chapters: List<Chapter>) = editQueue {
-        removeFromQueue(chapters)
+    suspend fun dequeue(chapters: List<Chapter>) {
+        val chapterIds = chapters.mapTo(HashSet()) { it.id }
+        dequeueIf { it.chapter.id in chapterIds }
+    }
+
+    private suspend fun dequeueIf(predicate: (Download) -> Boolean) {
+        // Leaves the running downloads alone when none of them is affected
+        if (queueState.value.none(predicate)) return
+
+        val isWorking = queueState.value.any { predicate(it) && it.status == Download.State.DOWNLOADING }
+        var canceledJob: Job? = null
+        editQueue {
+            canceledJob = downloaderJob
+            removeFromQueueIf(predicate)
+        }
+        // A canceled job can still be moving its chapter into place, which would bring back what the caller
+        // deletes next. Only the downloads being worked on can be in that state.
+        if (isWorking) canceledJob?.join()
     }
 
     private suspend inline fun editQueue(edit: () -> Unit) = lock.withLock {
@@ -851,3 +880,23 @@ class Downloader(
 
 // Arbitrary minimum required space to start a download: 200 MB
 private const val MIN_DISK_SPACE = 200L * 1024 * 1024
+
+/**
+ * Returns the prefix of the files of a page, padded so the pages of a chapter sort by number.
+ */
+internal fun pageFilePrefix(pageNumber: Int, pageCount: Int): String {
+    val digitCount = pageCount.toString().length.coerceAtLeast(3)
+    return "%0${digitCount}d".format(Locale.ENGLISH, pageNumber)
+}
+
+/**
+ * Returns the names in [fileNames] that belong to none of the [pageCount] pages of a chapter. The page files of
+ * the chapter, their partial downloads and split pages, ComicInfo and .nomedia are kept.
+ */
+internal fun staleChapterFileNames(fileNames: List<String>, pageCount: Int): List<String> {
+    val prefixes = (1..pageCount).mapTo(HashSet()) { pageFilePrefix(it, pageCount) }
+    return fileNames.filter { name ->
+        name != COMIC_INFO_FILE && name != NOMEDIA_FILE &&
+            name.substringBefore('.').substringBefore("__") !in prefixes
+    }
+}

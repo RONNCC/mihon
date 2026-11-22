@@ -69,10 +69,11 @@ class DownloadManager(
     }
 
     /**
-     * Tells the downloader to pause downloads.
+     * Tells the downloader to pause downloads, and keeps them from resuming when the network returns.
      */
     suspend fun pauseDownloads() {
         downloader.pause()
+        DownloadWorker.stop(context)
     }
 
     /**
@@ -81,6 +82,7 @@ class DownloadManager(
     suspend fun clearQueue() {
         downloader.clearQueue()
         downloader.stop()
+        DownloadWorker.stop(context)
     }
 
     /**

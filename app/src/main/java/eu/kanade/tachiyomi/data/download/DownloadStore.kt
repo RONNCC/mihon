@@ -92,9 +92,9 @@ class DownloadStore(
      * Returns the list of downloads to restore. It should be called in a background thread.
      */
     suspend fun restore(): List<Download> {
-        val objs = preferences.all
-            .mapNotNull { it.value as? String }
-            .mapNotNull { deserialize(it) }
+        val stored = preferences.all.mapNotNull { (key, value) -> (value as? String)?.let { key to it } }
+        val objs = stored
+            .mapNotNull { (_, value) -> deserialize(value) }
             .sortedBy { it.order }
 
         val downloads = mutableListOf<Download>()
@@ -110,8 +110,11 @@ class DownloadStore(
             }
         }
 
-        // Clear the store, downloads will be added again immediately.
-        clear()
+        // Downloads will be added again immediately. Entries rewritten meanwhile are chapters queued during the
+        // restore, which a clear would drop from the store.
+        preferences.edit {
+            stored.forEach { (key, value) -> if (preferences.getString(key, null) == value) remove(key) }
+        }
         return downloads
     }
 
