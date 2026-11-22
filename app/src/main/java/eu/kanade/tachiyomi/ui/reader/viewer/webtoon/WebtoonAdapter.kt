@@ -34,9 +34,9 @@ class WebtoonAdapter(
      * Updates this adapter with the given [chapters]. It handles setting a few pages of the
      * next/previous chapter to allow seamless transitions.
      */
-    fun setChapters(chapters: ViewerChapters, forceTransition: Boolean) {
+    fun setChapters(chapters: ViewerChapters, forceTransition: Boolean, shownTransition: ChapterTransition?) {
         val oldItems = items
-        webtoonItems.setChapters(chapters, forceTransition)
+        webtoonItems.setChapters(chapters, forceTransition, shownTransition)
         DiffUtil.calculateDiff(Callback(oldItems, items)).dispatchUpdatesTo(this)
     }
 

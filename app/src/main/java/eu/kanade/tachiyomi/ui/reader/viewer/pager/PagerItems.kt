@@ -55,11 +55,11 @@ class PagerItems(private val isReversed: Boolean) {
                 }
         }
 
-        val newItems = viewerItems(chapters, forceTransition, currPages)
+        val currentItem = items.getOrNull(currentPosition)
+        val newItems = viewerItems(chapters, forceTransition, currPages, currentItem as? ChapterTransition)
+        val enteredFromNext = currentChapter?.chapter?.id == chapters.nextChapter?.chapter?.id
         currentChapter = chapters.currChapter
         nextTransition = ChapterTransition.Next(chapters.currChapter, chapters.nextChapter)
-
-        val currentItem = items.getOrNull(currentPosition)
 
         if (isReversed) {
             newItems.reverse()
@@ -73,7 +73,10 @@ class PagerItems(private val isReversed: Boolean) {
         // position while pages are added in front, e.g. the next chapter's in right to left, and land in another
         // chapter
         val position = items.indexOf(currentItem).takeIf { it != -1 && it != currentPosition }
-        return Update(position, insertPageLastPage)
+        // Coming back onto the split last page, its second half is read first. Going forward onto it, as in a one
+        // page chapter, the first half is.
+        val insertPage = insertPageLastPage?.takeIf { it.parent == currentItem && enteredFromNext }
+        return Update(position, insertPage)
     }
 
     /**
@@ -109,13 +112,21 @@ class PagerItems(private val isReversed: Boolean) {
         return true
     }
 
-    fun cleanupPageSplit() {
+    /**
+     * Removes the split pages while the pager is at [currentPosition], and returns where it goes to stay on the page
+     * it shows, or -1.
+     */
+    fun cleanupPageSplit(currentPosition: Int): Int {
+        val currentItem = items.getOrNull(currentPosition)
+        // Split while adjacent, they would come back with their chapter
+        preprocessed = emptyList()
         items = items.filterNot { it is InsertPage }
+        return items.indexOf((currentItem as? InsertPage)?.parent ?: currentItem)
     }
 
     /**
-     * Where the pager goes after the items change: to [position] to stay on the same item, then to [insertPage] at
-     * the end of the chapter, which it would skip otherwise.
+     * Where the pager goes after the items change: to [position] to stay on the same item, then to [insertPage], the
+     * second half of the last page it came back to, which it would skip otherwise.
      */
     class Update(val position: Int?, val insertPage: InsertPage?)
 }

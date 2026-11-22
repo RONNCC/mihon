@@ -10,11 +10,13 @@ import android.view.MotionEvent
 import android.view.ViewConfiguration
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.animation.DecelerateInterpolator
+import android.widget.OverScroller
 import androidx.core.animation.doOnEnd
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import eu.kanade.tachiyomi.ui.reader.viewer.GestureDetectorWithLongTap
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * Implementation of a [RecyclerView] used by the webtoon reader.
@@ -25,7 +27,16 @@ class WebtoonRecyclerView @JvmOverloads constructor(
     defStyle: Int = 0,
 ) : RecyclerView(context, attrs, defStyle) {
 
-    private var flingAnimator: AnimatorSet? = null
+    private val zoomFlingScroller = OverScroller(context)
+    private var isZoomFlingingY = false
+    private val zoomFlingStep = object : Runnable {
+        override fun run() {
+            if (!zoomFlingScroller.computeScrollOffset()) return
+            x = getPositionX(zoomFlingScroller.currX.toFloat())
+            if (isZoomFlingingY) y = getPositionY(zoomFlingScroller.currY.toFloat())
+            postOnAnimation(this)
+        }
+    }
     private var isZooming = false
     private var atLastPosition = false
     private var atFirstPosition = false
@@ -59,6 +70,11 @@ class WebtoonRecyclerView @JvmOverloads constructor(
         get() = (Resources.getSystem().displayMetrics.widthPixels * (sidePaddingPercent / 100f)).toInt()
 
     var doubleTapZoom = true
+        set(value) {
+            field = value
+            // Without a double tap to wait for, a second quick tap would be taken as a double tap that does nothing
+            detector.setOnDoubleTapListener(if (value) listener else null)
+        }
 
     var tapListener: ((MotionEvent) -> Unit)? = null
     var longTapListener: ((MotionEvent) -> Boolean)? = null
@@ -155,38 +171,32 @@ class WebtoonRecyclerView @JvmOverloads constructor(
     }
 
     /**
-     * Stops the fling started by [zoomFling], whose horizontal translation isn't a scroll the list stops itself.
+     * Stops the fling started by [zoomFling], whose translation isn't a scroll the list stops itself.
      */
     fun stopZoomFling() {
-        flingAnimator?.cancel()
+        zoomFlingScroller.forceFinished(true)
+        removeCallbacks(zoomFlingStep)
     }
 
+    /** Flings the zoomed strip sideways, and up or down at its ends, with the physics the list scrolls with. */
     fun zoomFling(velocityX: Int, velocityY: Int): Boolean {
         if (currentScale <= 1f) return false
 
         stopZoomFling()
-        val distanceTimeFactor = 0.4f
-        val animatorSet = AnimatorSet()
-        flingAnimator = animatorSet
-
-        if (velocityX != 0) {
-            val dx = (distanceTimeFactor * velocityX / 2)
-            val newX = getPositionX(x + dx)
-            val translationXAnimator = ValueAnimator.ofFloat(x, newX)
-            translationXAnimator.addUpdateListener { animation -> x = getPositionX(animation.animatedValue as Float) }
-            animatorSet.play(translationXAnimator)
-        }
-        if (velocityY != 0 && (atFirstPosition || atLastPosition)) {
-            val dy = (distanceTimeFactor * velocityY / 2)
-            val newY = getPositionY(y + dy)
-            val translationYAnimator = ValueAnimator.ofFloat(y, newY)
-            translationYAnimator.addUpdateListener { animation -> y = getPositionY(animation.animatedValue as Float) }
-            animatorSet.play(translationYAnimator)
-        }
-
-        animatorSet.duration = 400
-        animatorSet.interpolator = DecelerateInterpolator()
-        animatorSet.start()
+        isZoomFlingingY = velocityY != 0 && (atFirstPosition || atLastPosition)
+        val maxX = getPositionX(Float.MAX_VALUE).toInt()
+        val maxY = if (isZoomFlingingY) getPositionY(Float.MAX_VALUE).toInt() else 0
+        zoomFlingScroller.fling(
+            x.roundToInt(),
+            if (isZoomFlingingY) y.roundToInt() else 0,
+            velocityX,
+            if (isZoomFlingingY) velocityY else 0,
+            -maxX,
+            maxX,
+            -maxY,
+            maxY,
+        )
+        postOnAnimation(zoomFlingStep)
 
         return true
     }
@@ -253,12 +263,29 @@ class WebtoonRecyclerView @JvmOverloads constructor(
     inner class GestureListener : GestureDetectorWithLongTap.Listener() {
 
         override fun onSingleTapConfirmed(ev: MotionEvent): Boolean {
+            onTap(ev)
+            return false
+        }
+
+        override fun onSingleTapUp(ev: MotionEvent): Boolean {
+            // Without a double tap listener no tap is ever confirmed. Handled after the list sees the up, which
+            // would stop a scroll the tap starts.
+            if (!doubleTapZoom) {
+                val tap = MotionEvent.obtain(ev)
+                post {
+                    onTap(tap)
+                    tap.recycle()
+                }
+            }
+            return false
+        }
+
+        private fun onTap(ev: MotionEvent) {
             // A tap is confirmed after a delay, by when the reader can be gone, and scrolling a detached list
             // lays out pages that can't compose
             if (!tapDuringManualScroll && isAttachedToWindow) {
                 tapListener?.invoke(ev)
             }
-            return false
         }
 
         override fun onDoubleTap(ev: MotionEvent): Boolean {

@@ -650,7 +650,7 @@ class Downloader(
             }
         } ?: return null
         chapterCache.removeImage(imageUrl)
-        val extension = tmpFile.openInputStream().use { ImageUtil.findImageType(it) } ?: return tmpFile
+        val extension = ImageUtil.findImageType { tmpFile.openInputStream() } ?: return tmpFile
         val renamed = tmpFile.renameTo("$filename.${extension.extension}")
         check(renamed) { "Could not rename cached page $filename" }
         return tmpFile

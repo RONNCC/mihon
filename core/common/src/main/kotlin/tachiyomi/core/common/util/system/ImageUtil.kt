@@ -29,25 +29,25 @@ import java.io.FilterInputStream
 import java.io.InputStream
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.sqrt
 
 object ImageUtil {
 
     fun isImage(name: String?, openStream: (() -> InputStream)? = null): Boolean {
         if (name == null) return false
 
-        val extension = name.substringAfterLast('.')
-        return ImageType.entries.any { it.extension == extension } || openStream?.let { findImageType(it) } != null
+        val extension = name.substringAfterLast('.').lowercase()
+        return extension == "jpeg" ||
+            ImageType.entries.any { it.extension == extension } ||
+            openStream?.let { findImageType(it) } != null
     }
 
     fun findImageType(openStream: () -> InputStream): ImageType? {
-        return openStream().use { findImageType(it) }
-    }
-
-    fun findImageType(stream: InputStream): ImageType? {
         return try {
-            val format = ImageDecoder.open(stream).use { dec -> dec.format }
+            val format = openHeader(openStream).use { dec -> dec.format }
             when (format) {
                 ImageDecoder.Format.JPEG -> ImageType.JPEG
                 ImageDecoder.Format.PNG -> ImageType.PNG
@@ -72,7 +72,7 @@ object ImageUtil {
 
     fun isAnimatedAndSupported(source: BufferedSource): Boolean {
         return try {
-            val type = findImageType(source.peek().inputStream()) ?: return false
+            val type = findImageType { source.peek().inputStream() } ?: return false
             when (type) {
                 ImageType.GIF -> true
                 ImageType.WEBP, ImageType.HEIF -> {
@@ -109,7 +109,7 @@ object ImageUtil {
         // The reader's decoder, not BitmapFactory: its size is after EXIF orientation, and it reads formats
         // BitmapFactory can't, so this agrees with how the page is shown
         return try {
-            openHeader(imageSource).use { it.width > it.height }
+            openHeader { imageSource.peek().inputStream() }.use { it.width > it.height }
         } catch (e: Exception) {
             logcat(LogPriority.ERROR) { "isWideImage: ${e.message}" }
             false
@@ -117,15 +117,17 @@ object ImageUtil {
     }
 
     /** A decoder that read only the header, unless the format needs the whole file, as JPEG 2000 does. */
-    private fun openHeader(imageSource: BufferedSource): ImageDecoder {
-        // available() 0 stops the read after the header
-        val headerOnly = object : FilterInputStream(imageSource.peek().inputStream()) {
-            override fun available() = 0
-        }
+    private fun openHeader(openStream: () -> InputStream): ImageDecoder {
         return try {
-            ImageDecoder.open(headerOnly, complete = false)
+            openStream().use { stream ->
+                // available() 0 stops the read after the header
+                val headerOnly = object : FilterInputStream(stream) {
+                    override fun available() = 0
+                }
+                ImageDecoder.open(headerOnly, complete = false)
+            }
         } catch (e: ImageDecoder.DecodeException) {
-            ImageDecoder.open(imageSource.peek().inputStream())
+            openStream().use { ImageDecoder.open(it) }
         }
     }
 
@@ -134,33 +136,33 @@ object ImageUtil {
      */
     fun splitInHalf(imageSource: BufferedSource, side: Side): BufferedSource {
         val imageBitmap = decodeBitmap(imageSource)
-        val height = imageBitmap.height
-        val width = imageBitmap.width
+        val half = try {
+            val height = imageBitmap.height
+            val width = imageBitmap.width
 
-        val singlePage = Rect(0, 0, width / 2, height)
+            val singlePage = Rect(0, 0, width / 2, height)
 
-        val half = createBitmap(width / 2, height)
-        val part = when (side) {
-            Side.RIGHT -> Rect(width - width / 2, 0, width, height)
-            Side.LEFT -> Rect(0, 0, width / 2, height)
+            val part = when (side) {
+                Side.RIGHT -> Rect(width - width / 2, 0, width, height)
+                Side.LEFT -> Rect(0, 0, width / 2, height)
+            }
+            createBitmap(width / 2, height).applyCanvas {
+                drawBitmap(imageBitmap, part, singlePage, null)
+            }
+        } finally {
+            imageBitmap.recycle()
         }
-        half.applyCanvas {
-            drawBitmap(imageBitmap, part, singlePage, null)
-        }
-        val output = Buffer()
-        half.compress(Bitmap.CompressFormat.JPEG, 100, output.outputStream())
-
-        return output
+        return compressToJpeg(half)
     }
 
     fun rotateImage(imageSource: BufferedSource, degrees: Float): BufferedSource {
         val imageBitmap = decodeBitmap(imageSource)
-        val rotated = rotateBitMap(imageBitmap, degrees)
-
-        val output = Buffer()
-        rotated.compress(Bitmap.CompressFormat.JPEG, 100, output.outputStream())
-
-        return output
+        val rotated = try {
+            rotateBitMap(imageBitmap, degrees)
+        } finally {
+            imageBitmap.recycle()
+        }
+        return compressToJpeg(rotated)
     }
 
     private fun rotateBitMap(bitmap: Bitmap, degrees: Float): Bitmap {
@@ -173,30 +175,39 @@ object ImageUtil {
      */
     fun splitAndMerge(imageSource: BufferedSource, upperSide: Side): BufferedSource {
         val imageBitmap = decodeBitmap(imageSource)
-        val height = imageBitmap.height
-        val width = imageBitmap.width
+        val result = try {
+            val height = imageBitmap.height
+            val width = imageBitmap.width
 
-        val result = createBitmap(width / 2, height * 2)
-        result.applyCanvas {
-            // right -> upper
-            val rightPart = when (upperSide) {
-                Side.RIGHT -> Rect(width - width / 2, 0, width, height)
-                Side.LEFT -> Rect(0, 0, width / 2, height)
+            createBitmap(width / 2, height * 2).applyCanvas {
+                // right -> upper
+                val rightPart = when (upperSide) {
+                    Side.RIGHT -> Rect(width - width / 2, 0, width, height)
+                    Side.LEFT -> Rect(0, 0, width / 2, height)
+                }
+                val upperPart = Rect(0, 0, width / 2, height)
+                drawBitmap(imageBitmap, rightPart, upperPart, null)
+                // left -> bottom
+                val leftPart = when (upperSide) {
+                    Side.LEFT -> Rect(width - width / 2, 0, width, height)
+                    Side.RIGHT -> Rect(0, 0, width / 2, height)
+                }
+                val bottomPart = Rect(0, height, width / 2, height * 2)
+                drawBitmap(imageBitmap, leftPart, bottomPart, null)
             }
-            val upperPart = Rect(0, 0, width / 2, height)
-            drawBitmap(imageBitmap, rightPart, upperPart, null)
-            // left -> bottom
-            val leftPart = when (upperSide) {
-                Side.LEFT -> Rect(width - width / 2, 0, width, height)
-                Side.RIGHT -> Rect(0, 0, width / 2, height)
-            }
-            val bottomPart = Rect(0, height, width / 2, height * 2)
-            drawBitmap(imageBitmap, leftPart, bottomPart, null)
+        } finally {
+            imageBitmap.recycle()
         }
+        return compressToJpeg(result)
+    }
 
-        val output = Buffer()
-        result.compress(Bitmap.CompressFormat.JPEG, 100, output.outputStream())
-        return output
+    // Recycled once compressed rather than left to a garbage collection, as it is about the size of the page
+    private fun compressToJpeg(bitmap: Bitmap): BufferedSource {
+        try {
+            return Buffer().also { bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it.outputStream()) }
+        } finally {
+            bitmap.recycle()
+        }
     }
 
     enum class Side {
@@ -209,14 +220,11 @@ object ImageUtil {
      */
     fun chooseBackground(context: Context, imageStream: InputStream): Drawable {
         val image = try {
-            ImageDecoder.open(imageStream).use { it.decodeNext() to it.isHdr }.let { (res, hdr) ->
-                res.use {
-                    val config = if (hdr) Bitmap.Config.RGBA_F16 else Bitmap.Config.ARGB_8888
-                    createBitmap(res.width, res.height, config).also { bitmap ->
-                        res.image.rewind()
-                        bitmap.copyPixelsFromBuffer(res.image)
-                    }
-                }
+            ImageDecoder.open(imageStream).use { dec ->
+                // A few dozen pixels are read, so a shrunk copy does instead of a second full size page
+                val pixels = dec.width.toDouble() * dec.height
+                val sampleSize = ceil(sqrt(pixels / BACKGROUND_PIXELS)).toInt().coerceAtLeast(1)
+                dec.decodeToBitmap(null, sampleSize)
             }
         } catch (e: Exception) {
             logcat(LogPriority.ERROR) { "chooseBackground: ${e.message}" }
@@ -455,3 +463,6 @@ object ImageUtil {
         return ImageDecoder.open(imageSource.inputStream()).use { it.decodeToBitmap() }
     }
 }
+
+// Shrinks a page to about this many pixels (16 MB of RGBA) to choose its background from
+private const val BACKGROUND_PIXELS = 4_000_000.0
