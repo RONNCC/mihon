@@ -56,6 +56,7 @@ class PagerItems(private val isReversed: Boolean) {
         }
 
         val newItems = viewerItems(chapters, forceTransition, currPages)
+        val enteredFromNext = currentChapter?.chapter?.id == chapters.nextChapter?.chapter?.id
         currentChapter = chapters.currChapter
         nextTransition = ChapterTransition.Next(chapters.currChapter, chapters.nextChapter)
 
@@ -73,7 +74,10 @@ class PagerItems(private val isReversed: Boolean) {
         // position while pages are added in front, e.g. the next chapter's in right to left, and land in another
         // chapter
         val position = items.indexOf(currentItem).takeIf { it != -1 && it != currentPosition }
-        return Update(position, insertPageLastPage)
+        // Coming back onto the split last page, its second half is read first. Going forward onto it, as in a one
+        // page chapter, the first half is.
+        val insertPage = insertPageLastPage?.takeIf { it.parent == currentItem && enteredFromNext }
+        return Update(position, insertPage)
     }
 
     /**
@@ -114,8 +118,8 @@ class PagerItems(private val isReversed: Boolean) {
     }
 
     /**
-     * Where the pager goes after the items change: to [position] to stay on the same item, then to [insertPage] at
-     * the end of the chapter, which it would skip otherwise.
+     * Where the pager goes after the items change: to [position] to stay on the same item, then to [insertPage], the
+     * second half of the last page it came back to, which it would skip otherwise.
      */
     class Update(val position: Int?, val insertPage: InsertPage?)
 }
