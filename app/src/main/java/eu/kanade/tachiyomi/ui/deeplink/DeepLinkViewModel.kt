@@ -72,8 +72,16 @@ class DeepLinkViewModel(
             networkToLocalManga(it.toDomainManga(source.id))
         } ?: return State.NoResults
 
+        // The manga is resolved by now, so a chapter that can't be found still leaves it to open
         val chapter = if (source.getUriType(query) == UriType.Chapter) {
-            source.getChapter(query)?.let { getChapterFromSChapter(it, manga, source) }
+            try {
+                source.getChapter(query)?.let { getChapterFromSChapter(it, manga, source) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logcat(LogPriority.ERROR, e)
+                null
+            }
         } else {
             null
         }
