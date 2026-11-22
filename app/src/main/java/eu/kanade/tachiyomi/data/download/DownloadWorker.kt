@@ -85,6 +85,17 @@ class DownloadWorker(context: Context, workerParams: WorkerParameters) : Corouti
             return Result.success()
         }
 
+        if (inputData.getBoolean(KEY_RESUME, false)) {
+            // This worker only waited for the network. The one that downloads has no constraint, as WorkManager
+            // would stop it on any drop before the grace period of watchNetwork could apply.
+            if (downloader.queueState.value.isEmpty()) return Result.success()
+
+            val request = OneTimeWorkRequestBuilder<DownloadWorker>().addTag(TAG).build()
+            WorkManager.getInstance(applicationContext)
+                .enqueueUniqueWork(TAG, ExistingWorkPolicy.APPEND_OR_REPLACE, request)
+            return Result.success()
+        }
+
         if (!downloader.start()) return Result.failure()
 
         var lostNetwork: NetworkIssue? = null
@@ -95,7 +106,7 @@ class DownloadWorker(context: Context, workerParams: WorkerParameters) : Corouti
                 isRunning = { downloader.isRunning },
                 currentIssue = { networkIssue() },
                 suspendDownloads = { downloader.suspendDownloads() },
-                resumeDownloads = { downloader.start() },
+                resumeDownloads = { downloader.resume() },
             )
         } finally {
             // Stopped by WorkManager means already canceled, and taking the lock would then throw instead of stopping

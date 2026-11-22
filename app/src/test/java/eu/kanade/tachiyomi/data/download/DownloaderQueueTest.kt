@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.data.download.model.Download
 import eu.kanade.tachiyomi.source.online.HttpSource
 import io.mockk.coEvery
 import io.mockk.mockk
+import io.mockk.spyk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.Test
 import tachiyomi.core.common.preference.InMemoryPreferenceStore
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.download.service.DownloadPreferences
+import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.model.Manga
 import tachiyomi.domain.source.service.SourceManager
 import java.io.IOException
@@ -34,7 +36,9 @@ class DownloaderQueueTest {
     private val manga = Manga.create().copy(id = 1, source = 2, title = "Queue")
     private val source = mockk<HttpSource>(relaxed = true)
     private val store = mockk<DownloadStore>(relaxed = true)
-    private val provider = mockk<DownloadProvider>()
+    private val provider = spyk(
+        DownloadProvider(mockk(relaxed = true), mockk(relaxed = true), LibraryPreferences(InMemoryPreferenceStore())),
+    )
 
     @BeforeEach
     fun setMain() {
@@ -121,17 +125,31 @@ class DownloaderQueueTest {
     }
 
     @Test
-    fun `suspending keeps the chapters queued and the downloader unpaused`() = runTest {
+    fun `suspending puts the running chapters back in the queue and doesn't pause`() = runTest {
         val storage = CompletableDeferred<Nothing>()
         coEvery { provider.getMangaDir(any(), any()) } coAnswers { storage.await() }
         val downloader = downloader(backgroundScope)
         downloader.queueChapters(manga, listOf(chapter(10)), autoStart = false)
         assertTrue(downloader.start())
+        // What the download job sets once it has the page list, which stop() would turn into an error
+        downloader.queueState.value.single().status = Download.State.DOWNLOADING
 
         downloader.suspendDownloads()
 
         assertFalse(downloader.isRunning)
         assertFalse(downloader.isPaused)
         assertEquals(listOf(Download.State.QUEUE), downloader.queueState.value.map { it.status })
+    }
+
+    @Test
+    fun `resuming leaves a paused downloader alone`() = runTest {
+        val downloader = downloader(backgroundScope)
+        downloader.queueChapters(manga, listOf(chapter(10)), autoStart = false)
+        downloader.pause()
+
+        downloader.resume()
+
+        assertFalse(downloader.isRunning)
+        assertTrue(downloader.isPaused)
     }
 }
