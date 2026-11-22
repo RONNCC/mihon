@@ -1,12 +1,19 @@
 package eu.kanade.tachiyomi.ui.base.delegate
 
-import android.app.Activity
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import eu.kanade.domain.ui.model.AppTheme
 import eu.kanade.tachiyomi.R
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import mihon.app.di.appGraph
 
 interface ThemingDelegate {
-    fun applyAppTheme(activity: Activity)
+    fun applyAppTheme(activity: AppCompatActivity)
 
     companion object {
         fun getThemeResIds(appTheme: AppTheme, isAmoled: Boolean): List<Int> {
@@ -19,10 +26,19 @@ interface ThemingDelegate {
 }
 
 class ThemingDelegateImpl : ThemingDelegate {
-    override fun applyAppTheme(activity: Activity) {
+    override fun applyAppTheme(activity: AppCompatActivity) {
         val uiPreferences = activity.appGraph.uiPreferences
-        ThemingDelegate.getThemeResIds(uiPreferences.appTheme.get(), uiPreferences.themeDarkAmoled.get())
-            .forEach(activity::setTheme)
+        val applied = uiPreferences.appTheme.get() to uiPreferences.themeDarkAmoled.get()
+        ThemingDelegate.getThemeResIds(applied.first, applied.second).forEach(activity::setTheme)
+
+        // The theme is only read on creation, so a change made elsewhere, like by a restore, needs a recreation
+        activity.lifecycleScope.launch {
+            activity.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                combine(uiPreferences.appTheme.changes(), uiPreferences.themeDarkAmoled.changes(), ::Pair)
+                    .first { it != applied }
+                ActivityCompat.recreate(activity)
+            }
+        }
     }
 }
 

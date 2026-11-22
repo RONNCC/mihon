@@ -1,6 +1,7 @@
 package eu.kanade.tachiyomi.ui.history
 
 import android.content.Context
+import androidx.activity.compose.BackHandler
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,6 +46,10 @@ fun HistoryTab() {
         onDialogChange = viewModel::setDialog,
         onClickFavorite = viewModel::addFavorite,
     )
+
+    BackHandler(enabled = state.searchQuery != null) {
+        viewModel.updateSearchQuery(null)
+    }
 
     val onDismissRequest = { viewModel.setDialog(null) }
     when (val dialog = state.dialog) {

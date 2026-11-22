@@ -6,10 +6,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -240,6 +242,12 @@ fun LibraryTab() {
         resultBus.sendResult(
             result = ShowBottomNavEvent(!state.selectionMode),
         )
+    }
+
+    // A tab switch from selection mode would otherwise leave the navigation hidden
+    val currentSelectionMode by rememberUpdatedState(state.selectionMode)
+    DisposableEffect(Unit) {
+        onDispose { if (currentSelectionMode) resultBus.sendResult(ShowBottomNavEvent(true)) }
     }
 
     LaunchedEffect(state.isLoading) {

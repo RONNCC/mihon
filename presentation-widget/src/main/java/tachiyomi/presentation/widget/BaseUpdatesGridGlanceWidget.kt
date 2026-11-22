@@ -34,13 +34,16 @@ import dev.zacsweers.metro.Inject
 import eu.kanade.tachiyomi.core.security.SecurityPreferences
 import eu.kanade.tachiyomi.util.system.dpToPx
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
+import logcat.LogPriority
 import mihon.core.metro.metroGraph
 import mihon.presentation.widget.di.PresentationWidgetGraph
+import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.manga.model.MangaCover
 import tachiyomi.domain.updates.interactor.GetUpdates
 import tachiyomi.domain.updates.model.UpdatesWithRelations
@@ -79,10 +82,12 @@ abstract class BaseUpdatesGridGlanceWidget : GlanceAppWidget() {
 
         val manager = GlanceAppWidgetManager(context)
         val ids = manager.getGlanceIds(javaClass)
+        // No sizes when the widget was removed in the meantime
         val (rowCount, columnCount) = ids
             .flatMap { manager.getAppWidgetSizes(it) }
-            .maxBy { it.height.value * it.width.value }
-            .calculateRowAndColumnCount(topPadding, bottomPadding)
+            .maxByOrNull { it.height.value * it.width.value }
+            ?.calculateRowAndColumnCount(topPadding, bottomPadding)
+            ?: return
 
         provideContent {
             // If app lock enabled, don't do anything
@@ -100,6 +105,7 @@ abstract class BaseUpdatesGridGlanceWidget : GlanceAppWidget() {
                     .map { rawData ->
                         rawData.prepareData(context, rowCount, columnCount)
                     }
+                    .catch { logcat(LogPriority.ERROR, it) { "Failed to prepare the updates widget" } }
             }
             val data by flow.collectAsState(initial = null)
             UpdatesWidget(

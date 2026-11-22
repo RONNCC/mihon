@@ -16,6 +16,7 @@ import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import eu.kanade.core.preference.asState
 import eu.kanade.core.util.addOrRemove
 import eu.kanade.core.util.insertSeparators
+import eu.kanade.core.util.selectionRangeTo
 import eu.kanade.domain.chapter.interactor.SetReadStatus
 import eu.kanade.presentation.manga.components.ChapterDownloadAction
 import eu.kanade.presentation.updates.UpdatesUiModel
@@ -92,8 +93,6 @@ class UpdatesViewModel(
 
     val lastUpdated by libraryPreferences.lastUpdatedTimestamp.asState(viewModelScope)
 
-    // First and last selected index in list
-    private val selectedPositions: Array<Int> = arrayOf(-1, -1)
     private val selectedChapterIds = MutableStateFlow(emptySet<Long>())
 
     private val dialog = MutableStateFlow<Dialog?>(null)
@@ -384,46 +383,14 @@ class UpdatesViewModel(
         val currentSelection = selectedChapterIds.value
         if ((item.update.chapterId in currentSelection) == selected) return
 
-        // Only visible items count, since the id set can retain ids filtered out of the list
-        val firstSelection = items.none { it.update.chapterId in currentSelection }
         val newSelection = currentSelection.toHashSet()
-        newSelection.addOrRemove(item.update.chapterId, selected)
-
         if (selected && fromLongPress) {
-            if (firstSelection) {
-                selectedPositions[0] = selectedIndex
-                selectedPositions[1] = selectedIndex
-            } else {
-                // Try to select the items in-between when possible
-                val range: IntRange
-                if (selectedIndex < selectedPositions[0]) {
-                    range = selectedIndex + 1..<selectedPositions[0]
-                    selectedPositions[0] = selectedIndex
-                } else if (selectedIndex > selectedPositions[1]) {
-                    range = (selectedPositions[1] + 1)..<selectedIndex
-                    selectedPositions[1] = selectedIndex
-                } else {
-                    // Just select itself
-                    range = IntRange.EMPTY
-                }
-
-                range.forEach { newSelection.add(items[it].update.chapterId) }
-            }
-        } else if (!fromLongPress) {
-            if (!selected) {
-                if (selectedIndex == selectedPositions[0]) {
-                    selectedPositions[0] = items.indexOfFirst { it.update.chapterId in newSelection }
-                } else if (selectedIndex == selectedPositions[1]) {
-                    selectedPositions[1] = items.indexOfLast { it.update.chapterId in newSelection }
-                }
-            } else {
-                if (selectedIndex < selectedPositions[0]) {
-                    selectedPositions[0] = selectedIndex
-                } else if (selectedIndex > selectedPositions[1]) {
-                    selectedPositions[1] = selectedIndex
-                }
-            }
+            // Try to select the items in-between when possible. Only visible items count, since the id set can
+            // retain ids filtered out of the list
+            items.selectionRangeTo(selectedIndex) { it.update.chapterId in currentSelection }
+                .forEach { newSelection.add(items[it].update.chapterId) }
         }
+        newSelection.addOrRemove(item.update.chapterId, selected)
 
         selectedChapterIds.update { newSelection }
     }
@@ -431,9 +398,6 @@ class UpdatesViewModel(
     fun toggleAllSelection(selected: Boolean) {
         val ids = if (selected) state.value.items.map { it.update.chapterId }.toSet() else emptySet()
         selectedChapterIds.update { ids }
-
-        selectedPositions[0] = -1
-        selectedPositions[1] = -1
     }
 
     fun invertSelection() {
@@ -443,9 +407,6 @@ class UpdatesViewModel(
             .filterNot { it in current }
             .toSet()
         selectedChapterIds.update { ids }
-
-        selectedPositions[0] = -1
-        selectedPositions[1] = -1
     }
 
     fun setDialog(dialog: Dialog?) {

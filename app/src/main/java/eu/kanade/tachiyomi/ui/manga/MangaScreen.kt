@@ -26,6 +26,7 @@ import eu.kanade.presentation.manga.ChapterSettingsDialog
 import eu.kanade.presentation.manga.DuplicateMangaDialog
 import eu.kanade.presentation.manga.EditCoverAction
 import eu.kanade.presentation.manga.MangaScreen
+import eu.kanade.presentation.manga.components.ChapterDownloadAction
 import eu.kanade.presentation.manga.components.DeleteChaptersDialog
 import eu.kanade.presentation.manga.components.MangaCoverDialog
 import eu.kanade.presentation.manga.components.ScanlatorFilterDialog
@@ -63,7 +64,9 @@ import mihon.presentation.core.util.isTabletUi
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.manga.model.Manga
+import tachiyomi.domain.source.model.StubSource
 import tachiyomi.presentation.core.screens.LoadingScreen
+import tachiyomi.source.local.isLocal
 
 @Composable
 fun MangaScreen(
@@ -112,7 +115,14 @@ fun MangaScreen(
         chapterSwipeEndAction = viewModel.chapterSwipeEndAction,
         navigateUp = navigator::pop,
         onChapterClicked = { openChapter(context, it) },
-        onDownloadChapter = viewModel::runChapterDownloadActions.takeIf { !successState.source.isLocalOrStub() },
+        onDownloadChapter = when {
+            successState.source.isLocal() -> null
+            // Nothing can be downloaded from an uninstalled extension, but what it left behind can be deleted
+            successState.source is StubSource -> { items, action ->
+                if (action == ChapterDownloadAction.DELETE) viewModel.runChapterDownloadActions(items, action)
+            }
+            else -> viewModel::runChapterDownloadActions
+        },
         downloadProgressProvider = viewModel::getDownloadProgress,
         onAddToLibraryClicked = {
             if (successState.manga.favorite) {
@@ -249,7 +259,7 @@ fun MangaScreen(
                 }
             val manga by vm.state.collectAsStateWithLifecycle()
             if (manga != null) {
-                val getContent = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {
+                val pickCover = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
                     if (it == null) return@rememberLauncherForActivityResult
                     vm.editCover(context, it)
                 }
@@ -262,7 +272,7 @@ fun MangaScreen(
                     onSaveClick = saveCover,
                     onEditClick = {
                         when (it) {
-                            EditCoverAction.EDIT -> getContent.launch("image/*")
+                            EditCoverAction.EDIT -> pickCover.launch(arrayOf("image/*"))
                             EditCoverAction.DELETE -> vm.deleteCustomCover(context)
                             EditCoverAction.ADD_TO_LIBRARY -> vm.addToLibraryWarning(context)
                         }
@@ -299,7 +309,7 @@ private fun continueReading(context: Context, unreadChapter: Chapter?) {
 }
 
 private fun openChapter(context: Context, chapter: Chapter) {
-    context.startActivity(ReaderActivity.newIntent(context, chapter.mangaId, chapter.id))
+    context.startActivity(ReaderActivity.newIntent(context, chapter.mangaId, chapter.id, fromMangaScreen = true))
 }
 
 private fun getMangaUrl(manga_: Manga?, source_: Source?): String? {

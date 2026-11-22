@@ -28,6 +28,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -920,7 +921,7 @@ fun TrackerRemoveScreen(
         create(mangaId = mangaId, track = track, trackerId = serviceId)
     }
     val serviceName = viewModel.getName()
-    var removeRemoteTrack by remember { mutableStateOf(false) }
+    var removeRemoteTrack by rememberSaveable { mutableStateOf(false) }
     AlertDialogContent(
         modifier = Modifier.windowInsetsPadding(WindowInsets.systemBars),
         icon = {

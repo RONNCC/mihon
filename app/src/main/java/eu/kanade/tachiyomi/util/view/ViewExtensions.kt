@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.view.inputmethod.EditorInfoCompat
 import dev.zacsweers.metrox.viewmodel.LocalMetroViewModelFactory
 import eu.kanade.domain.base.BasePreferences
+import eu.kanade.presentation.components.IncognitoKeyboard
 import eu.kanade.presentation.theme.TachiyomiTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.launchIn
@@ -36,7 +37,9 @@ inline fun ComponentActivity.setComposeContent(
                 LocalContentColor provides MaterialTheme.colorScheme.onBackground,
                 LocalMetroViewModelFactory provides appGraph.viewModelFactory,
             ) {
-                content()
+                IncognitoKeyboard {
+                    content()
+                }
             }
         }
     }
@@ -52,7 +55,9 @@ fun ComposeView.setComposeContent(
                 LocalTextStyle provides MaterialTheme.typography.bodySmall,
                 LocalContentColor provides MaterialTheme.colorScheme.onBackground,
             ) {
-                content()
+                IncognitoKeyboard {
+                    content()
+                }
             }
         }
     }
