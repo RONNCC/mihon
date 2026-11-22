@@ -123,7 +123,13 @@ class ExtensionStoreService(
     private suspend fun getOverHttps(url: String): Response {
         // The index names the key its extensions are trusted by, so it can't be readable or replaceable in transit
         require(url.toHttpUrl().isHttps) { "Extension stores must use HTTPS: $url" }
-        return network.client.newCall(GET(url)).awaitSuccess()
+        val response = network.client.newCall(GET(url)).awaitSuccess()
+        // OkHttp follows redirects from HTTPS to HTTP
+        if (!response.request.url.isHttps) {
+            response.close()
+            throw IllegalArgumentException("Extension stores must use HTTPS: ${response.request.url}")
+        }
+        return response
     }
 
     private fun BufferedSource.decompressIfGzipped(): BufferedSource {
