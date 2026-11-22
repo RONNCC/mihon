@@ -278,10 +278,11 @@ class DownloadManager(
     }
 
     /**
-     * Deletes the downloads of the given chapters regardless of the removal settings, and the queued ones of the manga.
+     * Deletes the downloads of a manga regardless of the removal settings, and its queued ones.
      *
-     * Only the directories of these chapters are deleted, as another entry with the same title and source name
-     * shares the manga directory.
+     * A manga directory that no other manga uses is deleted whole, with what no chapter accounts for. One shared with
+     * another manga of the same title in a source of the same name only loses the directories named after [chapters],
+     * so a chapter of the other manga that has the same name is lost as well.
      *
      * @param chapters all the chapters of the manga.
      * @param manga the manga to delete the downloads of.
@@ -290,7 +291,25 @@ class DownloadManager(
     suspend fun deleteMangaDownloads(chapters: List<Chapter>, manga: Manga, source: Source) {
         withContext(Dispatchers.IO) {
             downloader.removeFromQueue(manga)
-            deleteChapterDirs(chapters, manga, source)
+            if (isMangaDirShared(manga, source)) {
+                deleteChapterDirs(chapters, manga, source)
+            } else {
+                deleteMangaDir(manga, source)
+            }
+        }
+    }
+
+    /**
+     * Whether another manga is downloaded in the directory of [manga]. When the manga can't be told, it is.
+     */
+    private suspend fun isMangaDirShared(manga: Manga, source: Source): Boolean {
+        val sameTitle = getManga.awaitByTitle(manga.title) ?: return true
+        val sourceDirName = provider.getSourceDirName(source)
+        val mangaDirName = provider.getMangaDirName(manga.title)
+        return sameTitle.any {
+            it.id != manga.id &&
+                provider.getMangaDirName(it.title) == mangaDirName &&
+                provider.getSourceDirName(sourceManager.getOrStub(it.source)) == sourceDirName
         }
     }
 
