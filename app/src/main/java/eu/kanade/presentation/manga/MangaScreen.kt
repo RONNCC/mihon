@@ -316,7 +316,7 @@ private fun MangaScreenSmallImpl(
                 onMultiBookmarkClicked = onMultiBookmarkClicked,
                 onMultiMarkAsReadClicked = onMultiMarkAsReadClicked,
                 onMarkPreviousAsReadClicked = onMarkPreviousAsReadClicked,
-                onDownloadChapter = onDownloadChapter,
+                onDownloadChapter = onDownloadChapter.takeIf { onDownloadActionClicked != null },
                 onMultiDeleteClicked = onMultiDeleteClicked,
                 fillFraction = 1f,
             )
@@ -544,7 +544,7 @@ fun MangaScreenLargeImpl(
                 onMultiBookmarkClicked = onMultiBookmarkClicked,
                 onMultiMarkAsReadClicked = onMultiMarkAsReadClicked,
                 onMarkPreviousAsReadClicked = onMarkPreviousAsReadClicked,
-                onDownloadChapter = onDownloadChapter,
+                onDownloadChapter = onDownloadChapter.takeIf { onDownloadActionClicked != null },
                 onMultiDeleteClicked = onMultiDeleteClicked,
                 fillFraction = 0.5f,
                 modifier = Modifier

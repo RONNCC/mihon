@@ -26,6 +26,7 @@ import eu.kanade.presentation.manga.ChapterSettingsDialog
 import eu.kanade.presentation.manga.DuplicateMangaDialog
 import eu.kanade.presentation.manga.EditCoverAction
 import eu.kanade.presentation.manga.MangaScreen
+import eu.kanade.presentation.manga.components.ChapterDownloadAction
 import eu.kanade.presentation.manga.components.DeleteChaptersDialog
 import eu.kanade.presentation.manga.components.MangaCoverDialog
 import eu.kanade.presentation.manga.components.ScanlatorFilterDialog
@@ -63,7 +64,9 @@ import mihon.presentation.core.util.isTabletUi
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.chapter.model.Chapter
 import tachiyomi.domain.manga.model.Manga
+import tachiyomi.domain.source.model.StubSource
 import tachiyomi.presentation.core.screens.LoadingScreen
+import tachiyomi.source.local.isLocal
 
 @Composable
 fun MangaScreen(
@@ -112,7 +115,14 @@ fun MangaScreen(
         chapterSwipeEndAction = viewModel.chapterSwipeEndAction,
         navigateUp = navigator::pop,
         onChapterClicked = { openChapter(context, it) },
-        onDownloadChapter = viewModel::runChapterDownloadActions.takeIf { !successState.source.isLocalOrStub() },
+        onDownloadChapter = when {
+            successState.source.isLocal() -> null
+            // Nothing can be downloaded from an uninstalled extension, but what it left behind can be deleted
+            successState.source is StubSource -> { items, action ->
+                if (action == ChapterDownloadAction.DELETE) viewModel.runChapterDownloadActions(items, action)
+            }
+            else -> viewModel::runChapterDownloadActions
+        },
         downloadProgressProvider = viewModel::getDownloadProgress,
         onAddToLibraryClicked = {
             if (successState.manga.favorite) {
