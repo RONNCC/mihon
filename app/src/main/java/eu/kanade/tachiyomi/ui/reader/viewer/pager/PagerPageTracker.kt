@@ -67,18 +67,22 @@ class PagerPageTracker(
         val page = items.items.getOrNull(position)
         if (page != null && currentPage != page) {
             val allowPreload = checkAllowPreload(page as? ReaderPage)
+            val current = currentPage
             val forward = when {
-                currentPage is ReaderPage && page is ReaderPage -> {
+                page !is ReaderPage -> true
+                current is ReaderPage && current.chapter != page.chapter -> page.chapter == items.nextTransition?.to
+                current is ReaderPage -> {
                     // if both pages have the same number, it's a split page with an InsertPage
-                    if (page.number == (currentPage as ReaderPage).number) {
+                    if (page.number == current.number) {
                         // the InsertPage is always the second in the reading direction
                         page is InsertPage
                     } else {
-                        page.number > (currentPage as ReaderPage).number
+                        page.number > current.number
                     }
                 }
-                currentPage is ChapterTransition.Prev && page is ReaderPage ->
-                    false
+                // Forward from a Prev transition is into its own chapter, from a Next one out of it
+                current is ChapterTransition.Prev -> page.chapter == current.from
+                current is ChapterTransition.Next -> page.chapter != current.from
                 else -> true
             }
             currentPage = page
